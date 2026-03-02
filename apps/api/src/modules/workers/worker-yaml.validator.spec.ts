@@ -211,6 +211,20 @@ describe('validateWorkerConfig', () => {
     expect(result.name).toBe('my-worker');
   });
 
+  it('strips extra unknown fields from the result (Zod strip behavior)', () => {
+    // Decision: unknown fields are silently stripped, not rejected.
+    // This follows Zod's default z.object() strip mode.
+    const config = {
+      name: 'my-worker',
+      inputTypes: ['text'],
+      outputType: 'text',
+      provider: { name: 'anthropic', model: 'claude-3-5-sonnet-latest', apiKeyEnv: 'KEY' },
+      unknownField: 'should be removed',
+    };
+    const result = validateWorkerConfig(config) as Record<string, unknown>;
+    expect(result).not.toHaveProperty('unknownField');
+  });
+
   it('throws BadRequestException for invalid pre-parsed object', () => {
     expect(() => validateWorkerConfig({ name: 'test' })).toThrow(BadRequestException);
   });
