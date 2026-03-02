@@ -237,6 +237,12 @@ export class AssemblyLinesService {
         throw new NotFoundException(`Assembly line "${slug}" not found`);
       }
 
+      if (line.status === 'PAUSED' || line.status === 'ARCHIVED') {
+        throw new BadRequestException(
+          `Assembly line "${slug}" is ${line.status} and not accepting submissions`,
+        );
+      }
+
       const [pkg] = await tx
         .insert(packages)
         .values({

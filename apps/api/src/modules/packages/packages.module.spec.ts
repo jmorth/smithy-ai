@@ -40,4 +40,9 @@ describe('PackagesModule', () => {
     const service = module.get<PackagesService>(PackagesService);
     expect(service).toBeDefined();
   });
+
+  it('should export PackagesService', () => {
+    const exports = Reflect.getMetadata('exports', PackagesModule);
+    expect(exports).toContain(PackagesService);
+  });
 });
