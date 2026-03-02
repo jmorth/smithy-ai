@@ -20,12 +20,13 @@ describe('notificationStatusEnum', () => {
     expect(notificationStatusEnum).toBeDefined();
   });
 
-  it('has PENDING, SENT, and FAILED values', () => {
+  it('has PENDING, SENT, READ, and FAILED values', () => {
     const values = notificationStatusEnum.enumValues;
     expect(values).toContain('PENDING');
     expect(values).toContain('SENT');
+    expect(values).toContain('READ');
     expect(values).toContain('FAILED');
-    expect(values).toHaveLength(3);
+    expect(values).toHaveLength(4);
   });
 });
 
@@ -45,6 +46,7 @@ describe('notifications table', () => {
     expect(notifications.payload).toBeDefined();
     expect(notifications.status).toBeDefined();
     expect(notifications.sentAt).toBeDefined();
+    expect(notifications.readAt).toBeDefined();
     expect(notifications.createdAt).toBeDefined();
   });
 
@@ -75,6 +77,11 @@ describe('notifications table', () => {
   it('sentAt column is timestamp and nullable', () => {
     expect(notifications.sentAt.columnType).toBe('PgTimestamp');
     expect(notifications.sentAt.notNull).toBe(false);
+  });
+
+  it('readAt column is timestamp and nullable', () => {
+    expect(notifications.readAt.columnType).toBe('PgTimestamp');
+    expect(notifications.readAt.notNull).toBe(false);
   });
 
   it('createdAt column is timestamp and not null', () => {

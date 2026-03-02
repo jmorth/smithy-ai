@@ -5,6 +5,7 @@ export interface Notification {
   payload: Record<string, unknown>;
   status: string;
   sentAt?: string;
+  readAt?: string;
   createdAt: string;
 }
 

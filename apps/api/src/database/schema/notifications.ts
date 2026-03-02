@@ -10,6 +10,7 @@ export const notificationTypeEnum = pgEnum('notification_type', [
 export const notificationStatusEnum = pgEnum('notification_status', [
   'PENDING',
   'SENT',
+  'READ',
   'FAILED',
 ]);
 
@@ -20,6 +21,7 @@ export const notifications = pgTable('notifications', {
   payload: jsonb('payload').notNull(),
   status: notificationStatusEnum('status').notNull().default('PENDING'),
   sentAt: timestamp('sent_at'),
+  readAt: timestamp('read_at'),
   createdAt: timestamp('created_at').notNull().default(sql`now()`),
 });
 
