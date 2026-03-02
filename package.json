@@ -15,9 +15,15 @@
     "typecheck": "turbo typecheck"
   },
   "devDependencies": {
-    "turbo": "^2.0.0"
+    "turbo": "^2.0.0",
+    "yaml": "^2.8.2"
   },
   "pnpm": {
     "onlyBuiltDependencies": ["@nestjs/core", "esbuild"]
-  }
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "workers/*"
+  ]
 }
