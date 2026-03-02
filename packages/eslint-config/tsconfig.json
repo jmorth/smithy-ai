@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "paths": {}
+  },
+  "include": ["."],
+  "exclude": ["node_modules"]
+}
