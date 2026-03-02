@@ -34,6 +34,13 @@ export const envSchema = z.object({
   // Email (optional)
   RESEND_API_KEY: z.string().min(1).optional(),
 
+  // Container concurrency
+  CONTAINER_CONCURRENCY_LIMIT: z
+    .string()
+    .default('10')
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().positive()),
+
   // Retention
   RETENTION_DAYS: z
     .string()
