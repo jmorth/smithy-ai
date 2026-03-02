@@ -74,6 +74,13 @@ describe('PaginationQueryDto', () => {
     expect(dto.limit).toBe(25);
   });
 
+  it('fails when limit is a non-numeric string', async () => {
+    const dto = plainToInstance(PaginationQueryDto, { limit: 'abc' });
+    const errors = await validate(dto);
+    const error = errors.find((e) => e.property === 'limit');
+    expect(error).toBeDefined();
+  });
+
   it('passes with all fields provided', async () => {
     const dto = plainToInstance(PaginationQueryDto, {
       cursor: 'abc',
