@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Logger } from '@nestjs/common';
 import { AssemblyLineOrchestratorService } from './assembly-line-orchestrator.service';
 import { OrchestratorEventBus } from './orchestrator-event-bus';
-import { JOB_EVENTS, WORKER_QUEUE_PUBLISH } from './events/job-events';
+import { JOB_EVENTS, ASSEMBLY_LINE_EVENTS, WORKER_QUEUE_PUBLISH } from './events/job-events';
 import type { JobCompletedEvent, JobFailedEvent, JobStuckEvent } from './events/job-events';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -90,13 +90,12 @@ describe('AssemblyLineOrchestratorService', () => {
   // ─── onJobCompleted ────────────────────────────────────────────────────────
 
   describe('onJobCompleted', () => {
-    it('advances to next step when not final step', async () => {
+    it('advances to next step and emits worker.queue.publish event', async () => {
       const pkg = makePkg({ currentStep: 1 });
 
-      // selectChain.limit called multiple times across tx
       db._selectChain.limit
-        .mockResolvedValueOnce([pkg])        // package lookup
-        .mockResolvedValueOnce([makeLine()]); // line lookup inside tx
+        .mockResolvedValueOnce([pkg])
+        .mockResolvedValueOnce([makeLine()]);
 
       db._selectChain.orderBy.mockResolvedValueOnce([
         makeStep({ stepNumber: 1 }),
@@ -118,7 +117,9 @@ describe('AssemblyLineOrchestratorService', () => {
       await service.onJobCompleted(event);
 
       expect(db.update).toHaveBeenCalled();
-      expect(Logger.prototype.log).toHaveBeenCalled();
+      expect(Logger.prototype.log).toHaveBeenCalledWith(
+        expect.stringContaining('advanced to step 2'),
+      );
       expect(queuePublishSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           queueName: 'assembly.my-line.step.2',
@@ -126,6 +127,40 @@ describe('AssemblyLineOrchestratorService', () => {
           stepNumber: 2,
         }),
       );
+    });
+
+    it('emits worker.queue.publish AFTER the transaction commits', async () => {
+      const pkg = makePkg({ currentStep: 1 });
+
+      db._selectChain.limit
+        .mockResolvedValueOnce([pkg])
+        .mockResolvedValueOnce([makeLine()]);
+
+      db._selectChain.orderBy.mockResolvedValueOnce([
+        makeStep({ stepNumber: 1 }),
+        makeStep({ id: 'step-2', stepNumber: 2 }),
+      ]);
+
+      const callOrder: string[] = [];
+
+      db.transaction.mockImplementationOnce(async (fn: (tx: unknown) => unknown) => {
+        const result = await fn(db);
+        callOrder.push('transaction-committed');
+        return result;
+      });
+
+      eventBus.on(WORKER_QUEUE_PUBLISH, () => callOrder.push('event-emitted'));
+
+      const event: JobCompletedEvent = {
+        packageId: 'pkg-1',
+        assemblyLineSlug: 'my-line',
+        completedStep: 1,
+        jobExecutionId: 'job-1',
+      };
+
+      await service.onJobCompleted(event);
+
+      expect(callOrder).toEqual(['transaction-committed', 'event-emitted']);
     });
 
     it('marks package COMPLETED and emits assembly-line.completed on final step', async () => {
@@ -143,7 +178,7 @@ describe('AssemblyLineOrchestratorService', () => {
       db._updateChain.returning.mockResolvedValueOnce([{ ...pkg, status: 'COMPLETED' }]);
 
       const completedEventSpy = vi.fn();
-      eventBus.on('assembly-line.completed', completedEventSpy);
+      eventBus.on(ASSEMBLY_LINE_EVENTS.COMPLETED, completedEventSpy);
 
       const event: JobCompletedEvent = {
         packageId: 'pkg-1',
@@ -155,8 +190,11 @@ describe('AssemblyLineOrchestratorService', () => {
       await service.onJobCompleted(event);
 
       expect(db.update).toHaveBeenCalled();
+      expect(Logger.prototype.log).toHaveBeenCalledWith(
+        expect.stringContaining('COMPLETED'),
+      );
       expect(completedEventSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ packageId: 'pkg-1' }),
+        expect.objectContaining({ packageId: 'pkg-1', assemblyLineSlug: 'my-line' }),
       );
     });
 
@@ -175,7 +213,9 @@ describe('AssemblyLineOrchestratorService', () => {
       await service.onJobCompleted(event);
 
       expect(db.update).not.toHaveBeenCalled();
-      expect(Logger.prototype.warn).toHaveBeenCalled();
+      expect(Logger.prototype.warn).toHaveBeenCalledWith(
+        expect.stringContaining('stale event'),
+      );
     });
 
     it('logs error when currentStep < completedStep (out of order)', async () => {
@@ -193,7 +233,9 @@ describe('AssemblyLineOrchestratorService', () => {
       await service.onJobCompleted(event);
 
       expect(db.update).not.toHaveBeenCalled();
-      expect(Logger.prototype.error).toHaveBeenCalled();
+      expect(Logger.prototype.error).toHaveBeenCalledWith(
+        expect.stringContaining('out-of-order'),
+      );
     });
 
     it('logs warning and returns when package not found', async () => {
@@ -208,15 +250,37 @@ describe('AssemblyLineOrchestratorService', () => {
 
       await expect(service.onJobCompleted(event)).resolves.not.toThrow();
       expect(db.update).not.toHaveBeenCalled();
-      expect(Logger.prototype.warn).toHaveBeenCalled();
+      expect(Logger.prototype.warn).toHaveBeenCalledWith(
+        expect.stringContaining('not found'),
+      );
+    });
+
+    it('logs error when package has no assemblyLineId', async () => {
+      const pkg = makePkg({ assemblyLineId: null, currentStep: 1 });
+
+      db._selectChain.limit.mockResolvedValueOnce([pkg]);
+
+      const event: JobCompletedEvent = {
+        packageId: 'pkg-1',
+        assemblyLineSlug: 'my-line',
+        completedStep: 1,
+        jobExecutionId: 'job-1',
+      };
+
+      await service.onJobCompleted(event);
+
+      expect(db.update).not.toHaveBeenCalled();
+      expect(Logger.prototype.error).toHaveBeenCalledWith(
+        expect.stringContaining('no assembly line'),
+      );
     });
 
     it('logs error and returns when assembly line not found inside tx', async () => {
       const pkg = makePkg({ currentStep: 1 });
 
       db._selectChain.limit
-        .mockResolvedValueOnce([pkg])   // package found
-        .mockResolvedValueOnce([]);     // line NOT found
+        .mockResolvedValueOnce([pkg])
+        .mockResolvedValueOnce([]);
 
       const event: JobCompletedEvent = {
         packageId: 'pkg-1',
@@ -235,7 +299,7 @@ describe('AssemblyLineOrchestratorService', () => {
   // ─── onJobFailed ───────────────────────────────────────────────────────────
 
   describe('onJobFailed', () => {
-    it('updates package status to FAILED with error details', async () => {
+    it('updates package status to FAILED with error details logged', async () => {
       const pkg = makePkg({ currentStep: 1 });
 
       db._selectChain.limit.mockResolvedValueOnce([pkg]);
@@ -251,8 +315,11 @@ describe('AssemblyLineOrchestratorService', () => {
 
       await service.onJobFailed(event);
 
+      expect(db.transaction).toHaveBeenCalled();
       expect(db.update).toHaveBeenCalled();
-      expect(Logger.prototype.log).toHaveBeenCalled();
+      expect(Logger.prototype.log).toHaveBeenCalledWith(
+        expect.stringContaining('FAILED'),
+      );
     });
 
     it('logs warning and returns when package not found', async () => {
@@ -268,18 +335,20 @@ describe('AssemblyLineOrchestratorService', () => {
 
       await expect(service.onJobFailed(event)).resolves.not.toThrow();
       expect(db.update).not.toHaveBeenCalled();
-      expect(Logger.prototype.warn).toHaveBeenCalled();
+      expect(Logger.prototype.warn).toHaveBeenCalledWith(
+        expect.stringContaining('not found'),
+      );
     });
   });
 
   // ─── onJobStuck ────────────────────────────────────────────────────────────
 
   describe('onJobStuck', () => {
-    it('updates package status and logs a warning', async () => {
+    it('marks package FAILED and logs a warning for manual intervention', async () => {
       const pkg = makePkg({ currentStep: 1 });
 
       db._selectChain.limit.mockResolvedValueOnce([pkg]);
-      db._updateChain.returning.mockResolvedValueOnce([{ ...pkg, status: 'PROCESSING' }]);
+      db._updateChain.returning.mockResolvedValueOnce([{ ...pkg, status: 'FAILED' }]);
 
       const event: JobStuckEvent = {
         packageId: 'pkg-1',
@@ -290,8 +359,11 @@ describe('AssemblyLineOrchestratorService', () => {
 
       await service.onJobStuck(event);
 
+      expect(db.transaction).toHaveBeenCalled();
       expect(db.update).toHaveBeenCalled();
-      expect(Logger.prototype.warn).toHaveBeenCalled();
+      expect(Logger.prototype.warn).toHaveBeenCalledWith(
+        expect.stringContaining('STUCK'),
+      );
     });
 
     it('logs warning and returns when package not found', async () => {
@@ -306,7 +378,9 @@ describe('AssemblyLineOrchestratorService', () => {
 
       await expect(service.onJobStuck(event)).resolves.not.toThrow();
       expect(db.update).not.toHaveBeenCalled();
-      expect(Logger.prototype.warn).toHaveBeenCalled();
+      expect(Logger.prototype.warn).toHaveBeenCalledWith(
+        expect.stringContaining('not found'),
+      );
     });
   });
 
@@ -322,7 +396,6 @@ describe('AssemblyLineOrchestratorService', () => {
     });
 
     it('dispatches job.completed event to onJobCompleted handler', async () => {
-      // Package with stale step so no DB update needed
       const pkg = makePkg({ currentStep: 3 });
       db._selectChain.limit.mockResolvedValue([pkg]);
 
@@ -376,18 +449,6 @@ describe('AssemblyLineOrchestratorService', () => {
       await new Promise((r) => setTimeout(r, 0));
 
       expect(Logger.prototype.warn).toHaveBeenCalled();
-    });
-  });
-
-  // ─── getQueueName ─────────────────────────────────────────────────────────
-
-  describe('getQueueName', () => {
-    it('formats queue name as assembly.{slug}.step.{n}', () => {
-      expect(service.getQueueName('my-line', 3)).toBe('assembly.my-line.step.3');
-    });
-
-    it('handles slugs with hyphens', () => {
-      expect(service.getQueueName('complex-pipeline-v2', 1)).toBe('assembly.complex-pipeline-v2.step.1');
     });
   });
 });

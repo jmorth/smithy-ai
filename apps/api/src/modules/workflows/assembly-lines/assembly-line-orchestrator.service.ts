@@ -6,6 +6,7 @@ import { packages, assemblyLines, assemblyLineSteps } from '../../../database/sc
 import { OrchestratorEventBus } from './orchestrator-event-bus';
 import {
   JOB_EVENTS,
+  ASSEMBLY_LINE_EVENTS,
   WORKER_QUEUE_PUBLISH,
   type JobCompletedEvent,
   type JobFailedEvent,
@@ -57,21 +58,31 @@ export class AssemblyLineOrchestratorService implements OnModuleInit {
       return;
     }
 
+    if (!pkg.assemblyLineId) {
+      this.logger.error(
+        `job.completed: package ${packageId} has no assembly line assigned — ignoring (job=${jobExecutionId})`,
+      );
+      return;
+    }
+
     const currentStep = pkg.currentStep ?? 0;
 
     if (currentStep > completedStep) {
       this.logger.warn(
-        `job.completed: stale event for package ${packageId} — currentStep=${currentStep} > completedStep=${completedStep}, job=${jobExecutionId}`,
+        `job.completed: stale event for package ${packageId} — currentStep=${currentStep} > completedStep=${completedStep} (job=${jobExecutionId})`,
       );
       return;
     }
 
     if (currentStep < completedStep) {
       this.logger.error(
-        `job.completed: out-of-order event for package ${packageId} — currentStep=${currentStep} < completedStep=${completedStep}, job=${jobExecutionId}`,
+        `job.completed: out-of-order event for package ${packageId} — currentStep=${currentStep} < completedStep=${completedStep} (job=${jobExecutionId})`,
       );
       return;
     }
+
+    // Collect events to emit after the transaction commits
+    let pendingEvent: { name: string; data: unknown } | null = null;
 
     // currentStep === completedStep — proceed
     await this.db.transaction(async (tx) => {
@@ -83,7 +94,7 @@ export class AssemblyLineOrchestratorService implements OnModuleInit {
 
       if (!line) {
         this.logger.error(
-          `job.completed: assembly line not found for package ${packageId}`,
+          `job.completed: assembly line not found for package ${packageId} (assemblyLineId=${pkg.assemblyLineId})`,
         );
         return;
       }
@@ -108,11 +119,10 @@ export class AssemblyLineOrchestratorService implements OnModuleInit {
           `Package ${packageId} COMPLETED on assembly line "${assemblyLineSlug}" after step ${completedStep}`,
         );
 
-        this.eventBus.emit('assembly-line.completed', {
-          packageId,
-          assemblyLineSlug,
-          totalSteps,
-        });
+        pendingEvent = {
+          name: ASSEMBLY_LINE_EVENTS.COMPLETED,
+          data: { packageId, assemblyLineSlug, totalSteps },
+        };
       } else {
         const nextStep = completedStep + 1;
 
@@ -128,17 +138,20 @@ export class AssemblyLineOrchestratorService implements OnModuleInit {
           `Package ${packageId} advanced to step ${nextStep} on "${assemblyLineSlug}" — queue: ${queueName}`,
         );
 
-        // Placeholder for RabbitMQ publish (task 067). Emits a dispatch event
-        // that future consumers (e.g. the event bus bridge) will forward to the
-        // actual worker queue.
-        this.eventBus.emit(WORKER_QUEUE_PUBLISH, {
-          queueName,
-          packageId,
-          assemblyLineSlug,
-          stepNumber: nextStep,
-        });
+        pendingEvent = {
+          name: WORKER_QUEUE_PUBLISH,
+          data: { queueName, packageId, assemblyLineSlug, stepNumber: nextStep },
+        };
       }
     });
+
+    // Emit after transaction commits to avoid notifying consumers of uncommitted state
+    if (pendingEvent) {
+      this.eventBus.emit(
+        (pendingEvent as { name: string; data: unknown }).name,
+        (pendingEvent as { name: string; data: unknown }).data,
+      );
+    }
   }
 
   async onJobFailed(event: JobFailedEvent): Promise<void> {
@@ -157,11 +170,13 @@ export class AssemblyLineOrchestratorService implements OnModuleInit {
       return;
     }
 
-    await this.db
-      .update(packages)
-      .set({ status: 'FAILED', updatedAt: new Date() })
-      .where(eq(packages.id, packageId))
-      .returning();
+    await this.db.transaction(async (tx) => {
+      await (tx as typeof this.db)
+        .update(packages)
+        .set({ status: 'FAILED', updatedAt: new Date() })
+        .where(eq(packages.id, packageId))
+        .returning();
+    });
 
     this.logger.log(
       `Package ${packageId} FAILED on assembly line "${assemblyLineSlug}" at step ${failedStep} — ${errorMessage} (job=${jobExecutionId})`,
@@ -184,18 +199,23 @@ export class AssemblyLineOrchestratorService implements OnModuleInit {
       return;
     }
 
-    await this.db
-      .update(packages)
-      .set({ status: 'PROCESSING', updatedAt: new Date() })
-      .where(eq(packages.id, packageId))
-      .returning();
+    // No STUCK status exists in the package enum; FAILED is used to ensure the
+    // package surfaces in monitoring and is not confused with a healthy in-flight
+    // package. The log message clearly identifies this as a stuck (not errored) state.
+    await this.db.transaction(async (tx) => {
+      await (tx as typeof this.db)
+        .update(packages)
+        .set({ status: 'FAILED', updatedAt: new Date() })
+        .where(eq(packages.id, packageId))
+        .returning();
+    });
 
     this.logger.warn(
-      `Package ${packageId} is STUCK on assembly line "${assemblyLineSlug}" at step ${stuckStep} (job=${jobExecutionId}) — manual intervention required`,
+      `Package ${packageId} is STUCK on assembly line "${assemblyLineSlug}" at step ${stuckStep} (job=${jobExecutionId}) — marked FAILED, manual intervention required`,
     );
   }
 
-  getQueueName(assemblyLineSlug: string, stepNumber: number): string {
+  private getQueueName(assemblyLineSlug: string, stepNumber: number): string {
     return `assembly.${assemblyLineSlug}.step.${stepNumber}`;
   }
 }

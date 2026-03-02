@@ -48,4 +48,9 @@ describe('job event interfaces', () => {
     const m = await import('./job-events');
     expect(m.WORKER_QUEUE_PUBLISH).toBe('worker.queue.publish');
   });
+
+  it('ASSEMBLY_LINE_EVENTS.COMPLETED constant is defined', async () => {
+    const m = await import('./job-events');
+    expect(m.ASSEMBLY_LINE_EVENTS.COMPLETED).toBe('assembly-line.completed');
+  });
 });
