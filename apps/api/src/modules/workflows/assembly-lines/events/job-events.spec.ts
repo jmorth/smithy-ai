@@ -23,6 +23,7 @@ describe('job event interfaces', () => {
       jobExecutionId: 'job-1',
       errorMessage: 'timeout',
     };
+    expect(event.failedStep).toBe(1);
     expect(event.errorMessage).toBe('timeout');
   });
 
