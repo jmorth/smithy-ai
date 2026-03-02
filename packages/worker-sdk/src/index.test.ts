@@ -76,8 +76,16 @@ describe('@smithy/worker-sdk exported classes', () => {
     expect(typeof sdk.QuestionTimeoutError).toBe('function');
   });
 
-  it('AI is exported as a class', () => {
-    expect(typeof sdk.AI).toBe('function');
+  it('createModel is exported as a function', () => {
+    expect(typeof sdk.createModel).toBe('function');
+  });
+
+  it('UnsupportedProviderError is exported as a class', () => {
+    expect(typeof sdk.UnsupportedProviderError).toBe('function');
+  });
+
+  it('MissingApiKeyError is exported as a class', () => {
+    expect(typeof sdk.MissingApiKeyError).toBe('function');
   });
 
   it('APIClient is exported as a class', () => {
