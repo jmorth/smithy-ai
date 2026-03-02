@@ -1,8 +1,19 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from './app.module';
 import { AppController } from './app.controller';
 import { Logger } from 'nestjs-pino';
+
+vi.mock('pg', () => ({
+  Pool: vi.fn().mockImplementation(() => ({
+    query: vi.fn().mockResolvedValue({ rows: [] }),
+    end: vi.fn().mockResolvedValue(undefined),
+  })),
+}));
+
+vi.mock('drizzle-orm/node-postgres', () => ({
+  drizzle: vi.fn(() => ({ _tag: 'DrizzleClient' })),
+}));
 
 const requiredEnv = {
   DATABASE_URL: 'postgresql://smithy:smithy@localhost:5432/smithy',
