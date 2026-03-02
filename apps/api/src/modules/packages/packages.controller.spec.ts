@@ -1,8 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
+import request from 'supertest';
 import { PackagesController } from './packages.controller';
 import { PackagesService } from './packages.service';
+import { globalValidationPipe } from '../../common/pipes/validation.pipe';
 import type { CreatePackageDto } from './dto/create-package.dto';
 import type { UpdatePackageDto } from './dto/update-package.dto';
 import type { PaginationQueryDto } from './dto/pagination-query.dto';
@@ -306,5 +309,232 @@ describe('PackagesController', () => {
 
       await expect(controller.deleteFile(PKG_ID, FILE_ID)).rejects.toThrow(NotFoundException);
     });
+  });
+});
+
+// ── HTTP integration tests (Supertest) ────────────────────────────────────────
+
+describe('PackagesController HTTP integration', () => {
+  let app: INestApplication;
+  let mockService: ReturnType<typeof makeService>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mockService = makeService();
+
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [PackagesController],
+      providers: [{ provide: PackagesService, useValue: mockService }],
+    }).compile();
+
+    app = module.createNestApplication();
+    app.useGlobalPipes(globalValidationPipe);
+    await app.init();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  // ── HTTP status codes ──────────────────────────────────────────────────────
+
+  it('POST /packages → 201', async () => {
+    mockService.create.mockResolvedValue(makePackage());
+    await request(app.getHttpServer())
+      .post('/packages')
+      .send({ type: 'document' })
+      .expect(201);
+  });
+
+  it('GET /packages → 200', async () => {
+    mockService.findAll.mockResolvedValue({ data: [], total: 0 });
+    await request(app.getHttpServer()).get('/packages').expect(200);
+  });
+
+  it('GET /packages/:id → 200', async () => {
+    mockService.findById.mockResolvedValue({ ...makePackage(), files: [] });
+    await request(app.getHttpServer()).get(`/packages/${PKG_ID}`).expect(200);
+  });
+
+  it('PATCH /packages/:id → 200', async () => {
+    mockService.update.mockResolvedValue(makePackage());
+    await request(app.getHttpServer())
+      .patch(`/packages/${PKG_ID}`)
+      .send({ type: 'image' })
+      .expect(200);
+  });
+
+  it('DELETE /packages/:id → 204', async () => {
+    mockService.softDelete.mockResolvedValue(undefined);
+    await request(app.getHttpServer()).delete(`/packages/${PKG_ID}`).expect(204);
+  });
+
+  it('POST /packages/:id/files/presign → 200', async () => {
+    mockService.createPresignedUpload.mockResolvedValue({
+      uploadUrl: 'https://s3.example.com/presigned',
+      fileKey: 'packages/abc/file.pdf',
+    });
+    await request(app.getHttpServer())
+      .post(`/packages/${PKG_ID}/files/presign`)
+      .send({ filename: 'file.pdf', contentType: 'application/pdf' })
+      .expect(200);
+  });
+
+  it('POST /packages/:id/files/confirm → 201', async () => {
+    mockService.confirmFileUpload.mockResolvedValue(makeFile());
+    await request(app.getHttpServer())
+      .post(`/packages/${PKG_ID}/files/confirm`)
+      .send({
+        fileKey: 'packages/abc/uuid/file.pdf',
+        filename: 'file.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 1024,
+      })
+      .expect(201);
+  });
+
+  it('GET /packages/:id/files → 200', async () => {
+    mockService.listFiles.mockResolvedValue([]);
+    await request(app.getHttpServer()).get(`/packages/${PKG_ID}/files`).expect(200);
+  });
+
+  it('DELETE /packages/:id/files/:fileId → 204', async () => {
+    mockService.deleteFile.mockResolvedValue(undefined);
+    await request(app.getHttpServer())
+      .delete(`/packages/${PKG_ID}/files/${FILE_ID}`)
+      .expect(204);
+  });
+
+  // ── validation errors → 400 ────────────────────────────────────────────────
+
+  it('POST /packages with missing type → 400', async () => {
+    await request(app.getHttpServer())
+      .post('/packages')
+      .send({})
+      .expect(400);
+  });
+
+  it('POST /packages with empty type → 400', async () => {
+    await request(app.getHttpServer())
+      .post('/packages')
+      .send({ type: '' })
+      .expect(400);
+  });
+
+  it('POST /packages with invalid assemblyLineId (not UUID) → 400', async () => {
+    await request(app.getHttpServer())
+      .post('/packages')
+      .send({ type: 'document', assemblyLineId: 'not-a-uuid' })
+      .expect(400);
+  });
+
+  it('PATCH /packages/:id with invalid status → 400', async () => {
+    await request(app.getHttpServer())
+      .patch(`/packages/${PKG_ID}`)
+      .send({ status: 'INVALID_STATUS' })
+      .expect(400);
+  });
+
+  it('POST /packages/:id/files/presign with missing filename → 400', async () => {
+    await request(app.getHttpServer())
+      .post(`/packages/${PKG_ID}/files/presign`)
+      .send({ contentType: 'application/pdf' })
+      .expect(400);
+  });
+
+  it('POST /packages/:id/files/presign with invalid contentType → 400', async () => {
+    await request(app.getHttpServer())
+      .post(`/packages/${PKG_ID}/files/presign`)
+      .send({ filename: 'file.pdf', contentType: 'not-a-mime-type' })
+      .expect(400);
+  });
+
+  it('POST /packages/:id/files/confirm with missing fields → 400', async () => {
+    await request(app.getHttpServer())
+      .post(`/packages/${PKG_ID}/files/confirm`)
+      .send({ fileKey: 'key' })
+      .expect(400);
+  });
+
+  it('POST /packages/:id/files/confirm with negative sizeBytes → 400', async () => {
+    await request(app.getHttpServer())
+      .post(`/packages/${PKG_ID}/files/confirm`)
+      .send({
+        fileKey: 'packages/abc/uuid/file.pdf',
+        filename: 'file.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: -1,
+      })
+      .expect(400);
+  });
+
+  // ── invalid UUID path params → 400 ────────────────────────────────────────
+
+  it('GET /packages/not-a-uuid → 400', async () => {
+    await request(app.getHttpServer()).get('/packages/not-a-uuid').expect(400);
+  });
+
+  it('PATCH /packages/not-a-uuid → 400', async () => {
+    await request(app.getHttpServer())
+      .patch('/packages/not-a-uuid')
+      .send({})
+      .expect(400);
+  });
+
+  it('DELETE /packages/not-a-uuid → 400', async () => {
+    await request(app.getHttpServer()).delete('/packages/not-a-uuid').expect(400);
+  });
+
+  it('DELETE /packages/:id/files/not-a-uuid → 400', async () => {
+    await request(app.getHttpServer())
+      .delete(`/packages/${PKG_ID}/files/not-a-uuid`)
+      .expect(400);
+  });
+
+  // ── missing resources → 404 ───────────────────────────────────────────────
+
+  it('GET /packages/:id → 404 when service throws NotFoundException', async () => {
+    mockService.findById.mockRejectedValue(new NotFoundException('Package not found'));
+    await request(app.getHttpServer()).get(`/packages/${PKG_ID}`).expect(404);
+  });
+
+  it('PATCH /packages/:id → 404 when service throws NotFoundException', async () => {
+    mockService.update.mockRejectedValue(new NotFoundException('Package not found'));
+    await request(app.getHttpServer())
+      .patch(`/packages/${PKG_ID}`)
+      .send({ type: 'image' })
+      .expect(404);
+  });
+
+  it('DELETE /packages/:id → 404 when service throws NotFoundException', async () => {
+    mockService.softDelete.mockRejectedValue(new NotFoundException('Package not found'));
+    await request(app.getHttpServer()).delete(`/packages/${PKG_ID}`).expect(404);
+  });
+
+  it('POST /packages/:id/files/presign → 404 when service throws NotFoundException', async () => {
+    mockService.createPresignedUpload.mockRejectedValue(new NotFoundException('Package not found'));
+    await request(app.getHttpServer())
+      .post(`/packages/${PKG_ID}/files/presign`)
+      .send({ filename: 'file.pdf', contentType: 'application/pdf' })
+      .expect(404);
+  });
+
+  it('DELETE /packages/:id/files/:fileId → 404 when service throws NotFoundException', async () => {
+    mockService.deleteFile.mockRejectedValue(new NotFoundException('File not found'));
+    await request(app.getHttpServer())
+      .delete(`/packages/${PKG_ID}/files/${FILE_ID}`)
+      .expect(404);
+  });
+
+  // ── bad request from service → 400 ────────────────────────────────────────
+
+  it('PATCH /packages/:id → 400 when service throws BadRequestException', async () => {
+    mockService.update.mockRejectedValue(
+      new BadRequestException('Invalid status transition from COMPLETED to PENDING'),
+    );
+    await request(app.getHttpServer())
+      .patch(`/packages/${PKG_ID}`)
+      .send({ status: 'PENDING' })
+      .expect(400);
   });
 });
