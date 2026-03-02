@@ -9,6 +9,7 @@ describe('bootstrap (main entry point)', () => {
   let setGlobalPrefixSpy: ReturnType<typeof vi.fn>;
   let enableShutdownHooksSpy: ReturnType<typeof vi.fn>;
   let getSpy: ReturnType<typeof vi.fn>;
+  let useGlobalFiltersSpy: ReturnType<typeof vi.fn>;
   let mockLogger: { log: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
@@ -18,6 +19,7 @@ describe('bootstrap (main entry point)', () => {
     enableCorsSpy = vi.fn();
     setGlobalPrefixSpy = vi.fn();
     enableShutdownHooksSpy = vi.fn();
+    useGlobalFiltersSpy = vi.fn();
     getSpy = vi.fn().mockReturnValue(mockLogger);
 
     const mockApp: Partial<INestApplication> = {
@@ -26,6 +28,7 @@ describe('bootstrap (main entry point)', () => {
       enableCors: enableCorsSpy,
       setGlobalPrefix: setGlobalPrefixSpy,
       enableShutdownHooks: enableShutdownHooksSpy,
+      useGlobalFilters: useGlobalFiltersSpy,
       get: getSpy,
     };
 
@@ -48,6 +51,9 @@ describe('bootstrap (main entry point)', () => {
     }));
     vi.doMock('nestjs-pino', () => ({
       Logger: class Logger {},
+    }));
+    vi.doMock('./common/filters/http-exception.filter', () => ({
+      HttpExceptionFilter: class HttpExceptionFilter {},
     }));
   }
 
@@ -135,5 +141,14 @@ describe('bootstrap (main entry point)', () => {
     expect(createSpy).toHaveBeenCalledWith(expect.anything(), {
       bufferLogs: true,
     });
+  });
+
+  it('should register global exception filter via useGlobalFilters', async () => {
+    setupMocks();
+    const mod = await import('./main');
+    await mod.startupPromise;
+
+    expect(useGlobalFiltersSpy).toHaveBeenCalledTimes(1);
+    expect(useGlobalFiltersSpy).toHaveBeenCalledWith(expect.any(Object));
   });
 });
