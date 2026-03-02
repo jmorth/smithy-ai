@@ -15,6 +15,17 @@ vi.mock('drizzle-orm/node-postgres', () => ({
   drizzle: vi.fn(() => ({ _tag: 'DrizzleClient' })),
 }));
 
+vi.mock('@aws-sdk/client-s3', () => ({
+  S3Client: vi.fn().mockImplementation(() => ({ send: vi.fn().mockResolvedValue({}) })),
+  CreateBucketCommand: vi.fn().mockImplementation((input) => ({ input })),
+  PutObjectCommand: vi.fn(),
+  GetObjectCommand: vi.fn(),
+  DeleteObjectCommand: vi.fn(),
+  DeleteObjectsCommand: vi.fn(),
+  ListObjectsV2Command: vi.fn(),
+  HeadObjectCommand: vi.fn(),
+}));
+
 const requiredEnv = {
   DATABASE_URL: 'postgresql://smithy:smithy@localhost:5432/smithy',
   REDIS_URL: 'redis://localhost:6379',
