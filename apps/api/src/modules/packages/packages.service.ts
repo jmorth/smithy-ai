@@ -1,11 +1,15 @@
 import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
 import { and, eq, gt, gte, isNull, lte, sql } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
 import { PackageStatus } from '@smithy/shared';
 import { DRIZZLE } from '../../database/database.constants';
 import type { DrizzleClient } from '../../database/database.provider';
 import { packages, packageFiles } from '../../database/schema';
+import { StorageService } from '../storage/storage.service';
 import type { CreatePackageDto } from './dto/create-package.dto';
 import type { UpdatePackageDto } from './dto/update-package.dto';
+import type { PresignFileDto } from './dto/presign-file.dto';
+import type { ConfirmFileDto } from './dto/confirm-file.dto';
 import { PackageStatusMachine } from './package-status.machine';
 
 export type PackageRecord = typeof packages.$inferSelect;
@@ -33,7 +37,10 @@ const MAX_LIMIT = 100;
 
 @Injectable()
 export class PackagesService {
-  constructor(@Inject(DRIZZLE) private readonly db: DrizzleClient) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: DrizzleClient,
+    private readonly storage: StorageService,
+  ) {}
 
   async create(dto: CreatePackageDto): Promise<PackageRecord> {
     const [pkg] = await this.db
@@ -151,5 +158,72 @@ export class PackagesService {
       .update(packages)
       .set({ deletedAt: new Date() })
       .where(eq(packages.id, id));
+  }
+
+  async createPresignedUpload(
+    packageId: string,
+    dto: PresignFileDto,
+  ): Promise<{ uploadUrl: string; fileKey: string }> {
+    const exists = await this.db
+      .select({ id: packages.id })
+      .from(packages)
+      .where(and(eq(packages.id, packageId), isNull(packages.deletedAt)))
+      .limit(1);
+
+    if (!exists.length) {
+      throw new NotFoundException(`Package ${packageId} not found`);
+    }
+
+    const fileKey = `packages/${packageId}/${randomUUID()}/${dto.filename}`;
+    const uploadUrl = await this.storage.getPresignedUploadUrl(fileKey, dto.contentType);
+    return { uploadUrl, fileKey };
+  }
+
+  async confirmFileUpload(packageId: string, dto: ConfirmFileDto): Promise<PackageFileRecord> {
+    const exists = await this.db
+      .select({ id: packages.id })
+      .from(packages)
+      .where(and(eq(packages.id, packageId), isNull(packages.deletedAt)))
+      .limit(1);
+
+    if (!exists.length) {
+      throw new NotFoundException(`Package ${packageId} not found`);
+    }
+
+    const [file] = await this.db
+      .insert(packageFiles)
+      .values({
+        packageId,
+        fileKey: dto.fileKey,
+        filename: dto.filename,
+        mimeType: dto.mimeType,
+        sizeBytes: dto.sizeBytes,
+      })
+      .returning();
+
+    return file!;
+  }
+
+  async listFiles(packageId: string): Promise<PackageFileRecord[]> {
+    return this.db
+      .select()
+      .from(packageFiles)
+      .where(eq(packageFiles.packageId, packageId));
+  }
+
+  async deleteFile(packageId: string, fileId: string): Promise<void> {
+    const rows = await this.db
+      .select()
+      .from(packageFiles)
+      .where(and(eq(packageFiles.id, fileId), eq(packageFiles.packageId, packageId)))
+      .limit(1);
+
+    if (!rows.length) {
+      throw new NotFoundException(`File ${fileId} not found`);
+    }
+
+    await this.storage.delete(rows[0]!.fileKey);
+
+    await this.db.delete(packageFiles).where(eq(packageFiles.id, fileId));
   }
 }
