@@ -1,0 +1,86 @@
+# Stage 1: deps — prune monorepo to only what worker-sdk needs
+FROM node:20-alpine AS deps
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+RUN corepack enable && corepack prepare pnpm@10.28.0 --activate
+
+WORKDIR /app
+
+# Install turbo globally for pruning
+RUN pnpm add -g turbo
+
+# Copy full monorepo source
+COPY . .
+
+# Prune to only what worker-sdk needs (produces out/json and out/full)
+RUN turbo prune @smithy/worker-sdk --docker
+
+# ---
+
+# Stage 2: install — resolve and install production dependencies
+FROM node:20-alpine AS install
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+RUN corepack enable && corepack prepare pnpm@10.28.0 --activate
+
+WORKDIR /app
+
+# Copy pruned package manifests and lockfile for layer caching
+COPY --from=deps /app/out/json/ .
+COPY --from=deps /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+
+# Install production dependencies
+RUN pnpm install --frozen-lockfile --prod
+
+# Conditionally install pino-pretty for local development only
+ARG NODE_ENV=production
+RUN if [ "$NODE_ENV" != "production" ]; then \
+      pnpm add -w pino-pretty; \
+    fi
+
+# Copy pruned source files
+COPY --from=deps /app/out/full/ .
+
+# Explicitly copy root tsconfig (turbo prune may omit it)
+COPY tsconfig.base.json ./
+
+# Clean up caches
+RUN pnpm store prune && rm -rf /root/.cache /tmp/*
+
+# ---
+
+# Stage 3: runtime — minimal production image (no pnpm at runtime)
+FROM node:20-alpine AS runtime
+
+ENV NODE_ENV=production
+
+# Install tsx globally via npm (bundled with Node — small footprint, no pnpm store)
+RUN npm install -g tsx && npm cache clean --force
+
+# Create non-root user
+RUN addgroup -S smithy && adduser -S smithy -G smithy
+
+WORKDIR /app
+
+# Copy only what's needed from install stage
+COPY --from=install --chown=smithy:smithy /app/node_modules ./node_modules
+COPY --from=install --chown=smithy:smithy /app/packages ./packages
+COPY --from=install --chown=smithy:smithy /app/package.json ./package.json
+COPY --from=install --chown=smithy:smithy /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY --from=install --chown=smithy:smithy /app/tsconfig.base.json ./tsconfig.base.json
+
+# Create volume mount points for Worker containers
+RUN mkdir -p /config /worker /input && \
+    chown smithy:smithy /config /worker /input
+
+# Switch to non-root user
+USER smithy
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
+  CMD node -e "console.log('ok')" || exit 1
+
+ENTRYPOINT ["tsx", "/app/packages/worker-sdk/src/runner.ts"]
