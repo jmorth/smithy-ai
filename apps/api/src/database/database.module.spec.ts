@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from './database.module';
 import { DRIZZLE } from './database.constants';
+import { PG_POOL } from './database.provider';
 
 const mockPoolQuery = vi.fn().mockResolvedValue({ rows: [] });
 const mockPoolEnd = vi.fn().mockResolvedValue(undefined);
@@ -48,6 +49,12 @@ describe('DatabaseModule', () => {
     const db = module.get(DRIZZLE);
     expect(db).toBeDefined();
     expect(db).toHaveProperty('_tag', 'DrizzleClient');
+  });
+
+  it('exports the PG_POOL token', () => {
+    const pool = module.get(PG_POOL);
+    expect(pool).toBeDefined();
+    expect(pool).toHaveProperty('query');
   });
 
   it('verifies connection on initialization (SELECT 1 called)', () => {

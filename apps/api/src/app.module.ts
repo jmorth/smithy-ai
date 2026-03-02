@@ -3,11 +3,13 @@ import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
 import { AppConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
     AppConfigModule,
     DatabaseModule,
+    HealthModule,
     LoggerModule.forRoot({
       pinoHttp: {
         transport:
@@ -15,7 +17,9 @@ import { DatabaseModule } from './database/database.module';
             ? { target: 'pino-pretty', options: { singleLine: true } }
             : undefined,
         redact: ['req.headers.authorization'],
-        autoLogging: true,
+        autoLogging: {
+          ignore: (req) => req.url === '/health',
+        },
       },
     }),
   ],
