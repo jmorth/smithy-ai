@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NotFoundException, InternalServerErrorException } from '@nestjs/common';
 
+// --- Presigner mock ---
+const { mockGetSignedUrl } = vi.hoisted(() => ({ mockGetSignedUrl: vi.fn() }));
+vi.mock('@aws-sdk/s3-request-presigner', () => ({
+  getSignedUrl: mockGetSignedUrl,
+}));
+
 // --- S3 command mocks ---
 const mockSend = vi.fn();
 
@@ -271,6 +277,96 @@ describe('StorageService', () => {
       mockSend.mockRejectedValueOnce(Object.assign(new Error('network'), { name: 'NetworkError' }));
       const { service } = buildService();
       await expect(service.headObject('key')).rejects.toThrow(InternalServerErrorException);
+    });
+  });
+
+  describe('getPresignedUploadUrl', () => {
+    it('returns signed URL with default expiry (900s)', async () => {
+      mockGetSignedUrl.mockResolvedValueOnce('https://minio/presigned-upload');
+      const { service } = buildService();
+      const url = await service.getPresignedUploadUrl('packages/123/file.zip', 'application/zip');
+      expect(url).toBe('https://minio/presigned-upload');
+      expect(PutObjectCommand).toHaveBeenCalledWith({
+        Bucket: 'smithy',
+        Key: 'packages/123/file.zip',
+        ContentType: 'application/zip',
+      });
+      expect(mockGetSignedUrl).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ _type: 'PutObjectCommand' }),
+        { expiresIn: 900 },
+      );
+    });
+
+    it('uses provided expiresIn when within limit', async () => {
+      mockGetSignedUrl.mockResolvedValueOnce('https://minio/presigned-upload');
+      const { service } = buildService();
+      await service.getPresignedUploadUrl('key', 'image/png', 300);
+      expect(mockGetSignedUrl).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.any(Object),
+        { expiresIn: 300 },
+      );
+    });
+
+    it('caps expiresIn at 3600 seconds', async () => {
+      mockGetSignedUrl.mockResolvedValueOnce('https://minio/presigned-upload');
+      const { service } = buildService();
+      await service.getPresignedUploadUrl('key', 'image/png', 9999);
+      expect(mockGetSignedUrl).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.any(Object),
+        { expiresIn: 3600 },
+      );
+    });
+
+    it('includes ContentType in PutObjectCommand', async () => {
+      mockGetSignedUrl.mockResolvedValueOnce('https://minio/presigned-upload');
+      const { service } = buildService();
+      await service.getPresignedUploadUrl('key', 'image/jpeg', 60);
+      expect(PutObjectCommand).toHaveBeenCalledWith(
+        expect.objectContaining({ ContentType: 'image/jpeg' }),
+      );
+    });
+  });
+
+  describe('getPresignedDownloadUrl', () => {
+    it('returns signed URL with default expiry (900s)', async () => {
+      mockGetSignedUrl.mockResolvedValueOnce('https://minio/presigned-download');
+      const { service } = buildService();
+      const url = await service.getPresignedDownloadUrl('packages/123/file.zip');
+      expect(url).toBe('https://minio/presigned-download');
+      expect(GetObjectCommand).toHaveBeenCalledWith({
+        Bucket: 'smithy',
+        Key: 'packages/123/file.zip',
+      });
+      expect(mockGetSignedUrl).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ _type: 'GetObjectCommand' }),
+        { expiresIn: 900 },
+      );
+    });
+
+    it('uses provided expiresIn when within limit', async () => {
+      mockGetSignedUrl.mockResolvedValueOnce('https://minio/presigned-download');
+      const { service } = buildService();
+      await service.getPresignedDownloadUrl('key', 60);
+      expect(mockGetSignedUrl).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.any(Object),
+        { expiresIn: 60 },
+      );
+    });
+
+    it('caps expiresIn at 3600 seconds', async () => {
+      mockGetSignedUrl.mockResolvedValueOnce('https://minio/presigned-download');
+      const { service } = buildService();
+      await service.getPresignedDownloadUrl('key', 7200);
+      expect(mockGetSignedUrl).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.any(Object),
+        { expiresIn: 3600 },
+      );
     });
   });
 });
