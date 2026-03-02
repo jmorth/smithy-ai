@@ -17,9 +17,13 @@ import {
   CreateBucketCommand,
   HeadObjectCommand,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 @Injectable()
 export class StorageService implements OnModuleInit {
+  private static readonly DEFAULT_PRESIGNED_EXPIRY = 900;
+  private static readonly MAX_PRESIGNED_EXPIRY = 3600;
+
   private readonly logger = new Logger(StorageService.name);
   private readonly client: S3Client;
   private readonly bucket: string;
@@ -152,5 +156,31 @@ export class StorageService implements OnModuleInit {
       this.logger.error(`HeadObject failed: key=${key}`, err);
       throw new InternalServerErrorException('Failed to check object existence in storage');
     }
+  }
+
+  async getPresignedUploadUrl(key: string, contentType: string, expiresIn?: number): Promise<string> {
+    const expiry = Math.min(
+      expiresIn ?? StorageService.DEFAULT_PRESIGNED_EXPIRY,
+      StorageService.MAX_PRESIGNED_EXPIRY,
+    );
+    this.logger.debug(`Generating presigned upload URL: bucket=${this.bucket} key=${key} expiresIn=${expiry}`);
+    return getSignedUrl(
+      this.client,
+      new PutObjectCommand({ Bucket: this.bucket, Key: key, ContentType: contentType }),
+      { expiresIn: expiry },
+    );
+  }
+
+  async getPresignedDownloadUrl(key: string, expiresIn?: number): Promise<string> {
+    const expiry = Math.min(
+      expiresIn ?? StorageService.DEFAULT_PRESIGNED_EXPIRY,
+      StorageService.MAX_PRESIGNED_EXPIRY,
+    );
+    this.logger.debug(`Generating presigned download URL: bucket=${this.bucket} key=${key} expiresIn=${expiry}`);
+    return getSignedUrl(
+      this.client,
+      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+      { expiresIn: expiry },
+    );
   }
 }
