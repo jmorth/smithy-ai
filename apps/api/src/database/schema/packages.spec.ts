@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { getTableConfig } from 'drizzle-orm/pg-core';
 import { packageStatusEnum, packages, packageFiles } from './packages';
 
 describe('packageStatusEnum', () => {
@@ -143,6 +144,26 @@ describe('packageFiles table', () => {
   it('createdAt column is timestamp and not null', () => {
     expect(packageFiles.createdAt.columnType).toBe('PgTimestamp');
     expect(packageFiles.createdAt.notNull).toBe(true);
+  });
+});
+
+describe('packages FK constraints', () => {
+  it('packages table has a FK on assemblyLineId with ON DELETE SET NULL', () => {
+    const config = getTableConfig(packages);
+    expect(config.foreignKeys).toHaveLength(1);
+    const fk = config.foreignKeys[0];
+    const ref = fk.reference();
+    expect(ref.foreignTable[Symbol.for('drizzle:Name')]).toBe('assembly_lines');
+    expect(fk.onDelete).toBe('set null');
+  });
+
+  it('packageFiles table has a FK on packageId with ON DELETE CASCADE', () => {
+    const config = getTableConfig(packageFiles);
+    expect(config.foreignKeys).toHaveLength(1);
+    const fk = config.foreignKeys[0];
+    const ref = fk.reference();
+    expect(ref.foreignTable[Symbol.for('drizzle:Name')]).toBe('packages');
+    expect(fk.onDelete).toBe('cascade');
   });
 });
 

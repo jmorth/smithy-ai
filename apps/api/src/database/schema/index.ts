@@ -1,6 +1,7 @@
-// Schema barrel — table definitions imported here by tasks 014-017
+// Schema barrel — re-exports all table definitions, enums, and relations
 export * from './packages';
 export * from './workers';
 export * from './workflows';
 export * from './jobs';
 export * from './notifications';
+export * from './relations';

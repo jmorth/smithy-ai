@@ -1,5 +1,6 @@
 import { pgEnum, pgTable, uuid, varchar, integer, bigint, jsonb, timestamp } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
+import { assemblyLines } from './workflows';
 
 /**
  * PostgreSQL enum for the package lifecycle status.
@@ -19,8 +20,7 @@ export const packages = pgTable('packages', {
   type: varchar('type').notNull(),
   status: packageStatusEnum('status').notNull().default('PENDING'),
   metadata: jsonb('metadata').notNull().default(sql`'{}'::jsonb`),
-  /** FK to assembly_lines added in task 018 when that table exists. */
-  assemblyLineId: uuid('assembly_line_id'),
+  assemblyLineId: uuid('assembly_line_id').references(() => assemblyLines.id, { onDelete: 'set null' }),
   currentStep: integer('current_step'),
   createdBy: varchar('created_by'),
   /** Soft delete — records with non-null deletedAt are considered deleted. */
@@ -31,7 +31,7 @@ export const packages = pgTable('packages', {
 
 export const packageFiles = pgTable('package_files', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
-  packageId: uuid('package_id').notNull().references(() => packages.id),
+  packageId: uuid('package_id').notNull().references(() => packages.id, { onDelete: 'cascade' }),
   /** MinIO object key for the stored file. */
   fileKey: varchar('file_key').notNull(),
   /** Original filename provided at upload time. */
