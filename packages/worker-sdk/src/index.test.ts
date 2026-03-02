@@ -92,7 +92,11 @@ describe('@smithy/worker-sdk exported classes', () => {
     expect(typeof sdk.APIClient).toBe('function');
   });
 
-  it('Runner is exported as a class', () => {
-    expect(typeof sdk.Runner).toBe('function');
+  it('run is exported as a function', () => {
+    expect(typeof sdk.run).toBe('function');
+  });
+
+  it('InvalidWorkerError is exported as a class', () => {
+    expect(typeof sdk.InvalidWorkerError).toBe('function');
   });
 });

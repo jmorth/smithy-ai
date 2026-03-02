@@ -23,7 +23,8 @@
     "@ai-sdk/provider": "^3.0.8",
     "@smithy/shared": "workspace:*",
     "ai": "^6.0.105",
-    "pino": "^10.3.1"
+    "pino": "^10.3.1",
+    "yaml": "^2.8.2"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^3.2.4",
