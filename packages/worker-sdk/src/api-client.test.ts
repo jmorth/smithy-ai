@@ -803,6 +803,45 @@ describe('SmithyApiClient', () => {
     });
   });
 
+  describe('edge cases', () => {
+    it('falls back to statusText when error response body is empty', async () => {
+      const client = createClient();
+      fetchSpy.mockResolvedValueOnce(
+        new Response('', { status: 400, statusText: 'Bad Request' }),
+      );
+
+      try {
+        await client.healthCheck();
+        expect.unreachable();
+      } catch (error) {
+        expect(error).toBeInstanceOf(ApiClientError);
+        const apiErr = error as ApiClientError;
+        expect(apiErr.message).toContain('Bad Request');
+      }
+    });
+
+    it('handles response.text() failure during error handling', async () => {
+      const client = createClient();
+      const badResponse = {
+        ok: false,
+        status: 422,
+        statusText: 'Unprocessable Entity',
+        text: () => Promise.reject(new Error('read body failed')),
+      } as unknown as Response;
+      fetchSpy.mockResolvedValueOnce(badResponse);
+
+      try {
+        await client.healthCheck();
+        expect.unreachable();
+      } catch (error) {
+        expect(error).toBeInstanceOf(ApiClientError);
+        const apiErr = error as ApiClientError;
+        // Should fall back to statusText since text() failed
+        expect(apiErr.message).toContain('Unprocessable Entity');
+      }
+    });
+  });
+
   describe('ContextApiClient interface compliance', () => {
     it('implements submitQuestion matching the ContextApiClient interface', async () => {
       const client = createClient();
