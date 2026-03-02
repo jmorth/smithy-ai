@@ -2,3 +2,5 @@
 export * from './packages';
 export * from './workers';
 export * from './workflows';
+export * from './jobs';
+export * from './notifications';
