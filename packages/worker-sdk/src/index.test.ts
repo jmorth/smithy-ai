@@ -41,8 +41,8 @@ describe('@smithy/worker-sdk submodule barrels', () => {
 });
 
 describe('@smithy/worker-sdk placeholder classes', () => {
-  it('BaseWorker is exported as a class', () => {
-    expect(typeof sdk.BaseWorker).toBe('function');
+  it('SmithyWorker is exported as a class', () => {
+    expect(typeof sdk.SmithyWorker).toBe('function');
   });
 
   it('WorkerContext is exported as a class', () => {
