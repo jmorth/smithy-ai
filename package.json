@@ -20,7 +20,11 @@
     "yaml": "^2.8.2"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@nestjs/core", "esbuild"]
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@swc/core",
+      "esbuild"
+    ]
   },
   "workspaces": [
     "apps/*",
