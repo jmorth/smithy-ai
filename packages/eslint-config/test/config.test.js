@@ -74,7 +74,9 @@ describe('@smithy/eslint-config', () => {
     it('includes prettier config as the last item', () => {
       const last = config[config.length - 1]
       expect(last).toBeDefined()
-      expect(last).toHaveProperty('rules')
+      // eslint-config-prettier disables rules that conflict with prettier
+      // 'curly' is one of the rules explicitly disabled (set to 0/off)
+      expect(last?.rules?.['curly']).toBe(0)
     })
   })
 })
