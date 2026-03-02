@@ -19,22 +19,24 @@ export class WorkersService {
   async createWorker(dto: CreateWorkerDto): Promise<WorkerRecord> {
     const slug = generateSlug(dto.name);
 
-    const existing = await this.db
-      .select({ id: workers.id })
-      .from(workers)
-      .where(eq(workers.slug, slug))
-      .limit(1);
+    return this.db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select({ id: workers.id })
+        .from(workers)
+        .where(eq(workers.slug, slug))
+        .limit(1);
 
-    if (existing.length) {
-      throw new ConflictException(`Worker with slug "${slug}" already exists`);
-    }
+      if (existing) {
+        throw new ConflictException(`Worker with slug "${slug}" already exists`);
+      }
 
-    const [worker] = await this.db
-      .insert(workers)
-      .values({ name: dto.name, slug, description: dto.description })
-      .returning();
+      const [worker] = await tx
+        .insert(workers)
+        .values({ name: dto.name, slug, description: dto.description })
+        .returning();
 
-    return worker!;
+      return worker!;
+    });
   }
 
   async createVersion(slug: string, dto: CreateWorkerVersionDto): Promise<WorkerVersionRecord> {
@@ -71,7 +73,7 @@ export class WorkersService {
     });
   }
 
-  async findAll(): Promise<(WorkerRecord & { versions: WorkerVersionRecord[] })[]> {
+  async findAll(): Promise<WorkerWithVersions[]> {
     return this.db.query.workers.findMany({
       with: {
         versions: {
@@ -79,7 +81,7 @@ export class WorkersService {
           limit: 1,
         },
       },
-    }) as unknown as (WorkerRecord & { versions: WorkerVersionRecord[] })[];
+    }) as unknown as WorkerWithVersions[];
   }
 
   async findBySlug(slug: string): Promise<WorkerWithVersions> {

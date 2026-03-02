@@ -89,8 +89,13 @@ describe('WorkersService', () => {
     it('inserts a worker and returns the record', async () => {
       const worker = makeWorker();
       const { service, mockDb } = buildService();
-      mockDb.select.mockReturnValueOnce(makeSelectChain([]));
-      mockDb.insert.mockReturnValue(makeInsertChain([worker]));
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        const tx = makeTx({
+          select: vi.fn().mockReturnValueOnce(makeSelectChain([])),
+          insert: vi.fn().mockReturnValue(makeInsertChain([worker])),
+        });
+        return fn(tx);
+      });
       const result = await service.createWorker({ name: 'My Worker' });
       expect(result).toEqual(worker);
     });
@@ -98,44 +103,94 @@ describe('WorkersService', () => {
     it('generates slug from name', async () => {
       const worker = makeWorker({ slug: 'my-worker' });
       const { service, mockDb } = buildService();
-      mockDb.select.mockReturnValueOnce(makeSelectChain([]));
-      const insertChain = makeInsertChain([worker]);
-      mockDb.insert.mockReturnValue(insertChain);
+      let capturedValues: Record<string, unknown> | null = null;
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        const insertChain = {
+          values: vi.fn().mockImplementation((v: Record<string, unknown>) => {
+            capturedValues = v;
+            return { returning: vi.fn().mockResolvedValue([worker]) };
+          }),
+        };
+        const tx = makeTx({
+          select: vi.fn().mockReturnValueOnce(makeSelectChain([])),
+          insert: vi.fn().mockReturnValue(insertChain),
+        });
+        return fn(tx);
+      });
       await service.createWorker({ name: 'My Worker' });
-      expect(insertChain.values).toHaveBeenCalledWith(
-        expect.objectContaining({ slug: 'my-worker' }),
-      );
+      expect(capturedValues).toMatchObject({ slug: 'my-worker' });
     });
 
     it('throws ConflictException when slug already exists', async () => {
       const { service, mockDb } = buildService();
-      mockDb.select.mockReturnValueOnce(makeSelectChain([makeWorker()]));
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        const tx = makeTx({
+          select: vi.fn().mockReturnValueOnce(makeSelectChain([makeWorker()])),
+        });
+        return fn(tx);
+      });
       await expect(service.createWorker({ name: 'My Worker' })).rejects.toThrow(ConflictException);
     });
 
     it('includes slug in the ConflictException message', async () => {
       const { service, mockDb } = buildService();
-      mockDb.select.mockReturnValueOnce(makeSelectChain([makeWorker()]));
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        const tx = makeTx({
+          select: vi.fn().mockReturnValueOnce(makeSelectChain([makeWorker()])),
+        });
+        return fn(tx);
+      });
       await expect(service.createWorker({ name: 'My Worker' })).rejects.toThrow('my-worker');
     });
 
     it('does not insert when slug already exists', async () => {
       const { service, mockDb } = buildService();
-      mockDb.select.mockReturnValueOnce(makeSelectChain([makeWorker()]));
+      let txInsert: any;
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        const tx = makeTx({
+          select: vi.fn().mockReturnValueOnce(makeSelectChain([makeWorker()])),
+          insert: vi.fn(),
+        });
+        txInsert = tx.insert;
+        return fn(tx);
+      });
       await expect(service.createWorker({ name: 'My Worker' })).rejects.toThrow(ConflictException);
-      expect(mockDb.insert).not.toHaveBeenCalled();
+      expect(txInsert).not.toHaveBeenCalled();
     });
 
     it('passes name and description to insert', async () => {
       const worker = makeWorker({ description: 'A worker' });
       const { service, mockDb } = buildService();
-      mockDb.select.mockReturnValueOnce(makeSelectChain([]));
-      const insertChain = makeInsertChain([worker]);
-      mockDb.insert.mockReturnValue(insertChain);
+      let capturedValues: Record<string, unknown> | null = null;
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        const insertChain = {
+          values: vi.fn().mockImplementation((v: Record<string, unknown>) => {
+            capturedValues = v;
+            return { returning: vi.fn().mockResolvedValue([worker]) };
+          }),
+        };
+        const tx = makeTx({
+          select: vi.fn().mockReturnValueOnce(makeSelectChain([])),
+          insert: vi.fn().mockReturnValue(insertChain),
+        });
+        return fn(tx);
+      });
       await service.createWorker({ name: 'My Worker', description: 'A worker' });
-      expect(insertChain.values).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'My Worker', description: 'A worker' }),
-      );
+      expect(capturedValues).toMatchObject({ name: 'My Worker', description: 'A worker' });
+    });
+
+    it('wraps execution in a transaction', async () => {
+      const worker = makeWorker();
+      const { service, mockDb } = buildService();
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        const tx = makeTx({
+          select: vi.fn().mockReturnValueOnce(makeSelectChain([])),
+          insert: vi.fn().mockReturnValue(makeInsertChain([worker])),
+        });
+        return fn(tx);
+      });
+      await service.createWorker({ name: 'My Worker' });
+      expect(mockDb.transaction).toHaveBeenCalledOnce();
     });
   });
 

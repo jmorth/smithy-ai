@@ -85,4 +85,20 @@ describe('UpdateWorkerDto', () => {
     const dto = new UpdateWorkerDto();
     expect('slug' in dto).toBe(false);
   });
+
+  it('fails when name contains only spaces', async () => {
+    const dto = plainToInstance(UpdateWorkerDto, { name: '   ' });
+    const errors = await validate(dto);
+    const nameError = errors.find((e) => e.property === 'name');
+    expect(nameError).toBeDefined();
+    expect(nameError!.constraints).toBeDefined();
+  });
+
+  it('fails when name contains only hyphens', async () => {
+    const dto = plainToInstance(UpdateWorkerDto, { name: '-' });
+    const errors = await validate(dto);
+    const nameError = errors.find((e) => e.property === 'name');
+    expect(nameError).toBeDefined();
+    expect(nameError!.constraints).toBeDefined();
+  });
 });
