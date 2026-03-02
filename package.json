@@ -18,6 +18,6 @@
     "turbo": "^2.0.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@nestjs/core"]
+    "onlyBuiltDependencies": ["@nestjs/core", "esbuild"]
   }
 }
