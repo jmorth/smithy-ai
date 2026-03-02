@@ -289,6 +289,34 @@ describe('JobHandler', () => {
       );
     });
 
+    it('logs error with string representation for non-Error failures', async () => {
+      const loggerSpy = vi.spyOn((handler as any).logger, 'error');
+      mockEmit.mockImplementation(() => {
+        throw 'string error';
+      });
+
+      const event: WorkerStateChangedEvent = {
+        eventType: 'job.state.changed',
+        timestamp: '2026-01-01T00:00:00.000Z',
+        correlationId: 'corr-str-err',
+        payload: {
+          jobExecutionId: 'exec-1',
+          workerId: 'w-1',
+          workerVersionId: 'wv-1',
+          previousState: 'idle' as any,
+          newState: 'running' as any,
+          packageId: 'pkg-1',
+        },
+      };
+
+      await handler.handleJobEvent(event as any);
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to handle event'),
+        'string error',
+      );
+    });
+
     it('propagates correlationId to all downstream calls', async () => {
       const event: WorkerStateChangedEvent = {
         eventType: 'job.state.changed',
