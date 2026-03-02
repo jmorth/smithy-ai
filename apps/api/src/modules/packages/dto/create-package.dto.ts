@@ -10,6 +10,7 @@ export class CreatePackageDto {
   metadata?: Record<string, unknown>;
 
   @IsOptional()
+  @IsString({ message: 'assemblyLineId must be a string' })
   @IsUUID('all', { message: 'assemblyLineId must be a valid UUID' })
   assemblyLineId?: string;
 }
