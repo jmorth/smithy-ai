@@ -4,11 +4,13 @@ import { AppController } from './app.controller';
 import { AppConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
+import { StorageModule } from './modules/storage/storage.module';
 
 @Module({
   imports: [
     AppConfigModule,
     DatabaseModule,
+    StorageModule,
     HealthModule,
     LoggerModule.forRoot({
       pinoHttp: {
