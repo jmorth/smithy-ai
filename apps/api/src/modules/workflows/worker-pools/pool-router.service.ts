@@ -132,6 +132,19 @@ export class PoolRouterService {
   }
 
   /**
+   * Returns the current active job count for the given pool from Redis.
+   * Returns null if Redis is unavailable.
+   */
+  async getActiveCount(poolSlug: string): Promise<number | null> {
+    try {
+      const raw = await this.redis.get(`pool:${poolSlug}:active`);
+      return parseInt(raw ?? '0', 10);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Decrements the active job counter for the given pool.
    * Called when a job completes or fails to free a concurrency slot.
    * Protected against going below zero.

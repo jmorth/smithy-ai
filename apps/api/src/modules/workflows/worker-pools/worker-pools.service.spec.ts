@@ -123,6 +123,15 @@ function makeTx(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function makeRoutingResult(overrides: Record<string, unknown> = {}) {
+  return {
+    workerSlug: 'my-worker',
+    workerVersion: 1,
+    status: 'dispatched' as const,
+    ...overrides,
+  };
+}
+
 function buildService() {
   const mockDb: any = {
     insert: vi.fn(),
@@ -131,8 +140,11 @@ function buildService() {
     delete: vi.fn(),
     transaction: vi.fn(),
   };
-  const service = new WorkerPoolsService(mockDb);
-  return { service, mockDb };
+  const mockRouter: any = {
+    route: vi.fn().mockResolvedValue(makeRoutingResult()),
+  };
+  const service = new WorkerPoolsService(mockDb, mockRouter);
+  return { service, mockDb, mockRouter };
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -907,7 +919,7 @@ describe('WorkerPoolsService', () => {
       });
 
       const result = await service.submit('my-pool', packageData);
-      expect(result).toEqual(pkg);
+      expect(result).toEqual({ package: pkg, routing: makeRoutingResult() });
     });
 
     it('throws NotFoundException when pool does not exist', async () => {
@@ -1124,7 +1136,7 @@ describe('WorkerPoolsService', () => {
       });
 
       const result = await service.submit('my-pool', { type: 'document' });
-      expect(result).toEqual(pkg);
+      expect(result).toEqual({ package: pkg, routing: makeRoutingResult() });
     });
 
     it('throws BadRequestException when pool has no members', async () => {

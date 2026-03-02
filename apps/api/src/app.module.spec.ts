@@ -15,6 +15,38 @@ vi.mock('drizzle-orm/node-postgres', () => ({
   drizzle: vi.fn(() => ({ _tag: 'DrizzleClient' })),
 }));
 
+vi.mock('ioredis', () => ({
+  default: vi.fn().mockImplementation(() => ({
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn().mockResolvedValue('OK'),
+    incr: vi.fn().mockResolvedValue(1),
+    decr: vi.fn().mockResolvedValue(0),
+    quit: vi.fn().mockResolvedValue(undefined),
+    disconnect: vi.fn(),
+  })),
+}));
+
+vi.mock('amqplib', () => ({
+  default: {
+    connect: vi.fn().mockResolvedValue({
+      createChannel: vi.fn().mockResolvedValue({
+        sendToQueue: vi.fn(),
+        assertQueue: vi.fn().mockResolvedValue({}),
+        close: vi.fn().mockResolvedValue(undefined),
+      }),
+      close: vi.fn().mockResolvedValue(undefined),
+    }),
+  },
+  connect: vi.fn().mockResolvedValue({
+    createChannel: vi.fn().mockResolvedValue({
+      sendToQueue: vi.fn(),
+      assertQueue: vi.fn().mockResolvedValue({}),
+      close: vi.fn().mockResolvedValue(undefined),
+    }),
+    close: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+
 vi.mock('@aws-sdk/client-s3', () => ({
   S3Client: vi.fn().mockImplementation(() => ({ send: vi.fn().mockResolvedValue({}) })),
   CreateBucketCommand: vi.fn().mockImplementation((input) => ({ input })),
