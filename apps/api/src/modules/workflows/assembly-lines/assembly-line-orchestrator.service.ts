@@ -84,22 +84,24 @@ export class AssemblyLineOrchestratorService implements OnModuleInit {
     // Collect events to emit after the transaction commits
     let pendingEvent: { name: string; data: unknown } | null = null;
 
+    const assemblyLineId = pkg.assemblyLineId;
+
     // currentStep === completedStep — proceed
     await this.db.transaction(async (tx) => {
-      const [line] = await (tx as typeof this.db)
+      const [line] = await tx
         .select({ id: assemblyLines.id, slug: assemblyLines.slug })
         .from(assemblyLines)
-        .where(eq(assemblyLines.id, pkg.assemblyLineId!))
+        .where(eq(assemblyLines.id, assemblyLineId))
         .limit(1);
 
       if (!line) {
         this.logger.error(
-          `job.completed: assembly line not found for package ${packageId} (assemblyLineId=${pkg.assemblyLineId})`,
+          `job.completed: assembly line not found for package ${packageId} (assemblyLineId=${assemblyLineId})`,
         );
         return;
       }
 
-      const steps = await (tx as typeof this.db)
+      const steps = await tx
         .select()
         .from(assemblyLineSteps)
         .where(eq(assemblyLineSteps.assemblyLineId, line.id))
@@ -109,7 +111,7 @@ export class AssemblyLineOrchestratorService implements OnModuleInit {
       const isFinal = completedStep >= totalSteps;
 
       if (isFinal) {
-        await (tx as typeof this.db)
+        await tx
           .update(packages)
           .set({ status: 'COMPLETED', updatedAt: new Date() })
           .where(eq(packages.id, packageId))
@@ -126,7 +128,7 @@ export class AssemblyLineOrchestratorService implements OnModuleInit {
       } else {
         const nextStep = completedStep + 1;
 
-        await (tx as typeof this.db)
+        await tx
           .update(packages)
           .set({ currentStep: nextStep, updatedAt: new Date() })
           .where(eq(packages.id, packageId))
@@ -171,7 +173,7 @@ export class AssemblyLineOrchestratorService implements OnModuleInit {
     }
 
     await this.db.transaction(async (tx) => {
-      await (tx as typeof this.db)
+      await tx
         .update(packages)
         .set({ status: 'FAILED', updatedAt: new Date() })
         .where(eq(packages.id, packageId))
@@ -203,7 +205,7 @@ export class AssemblyLineOrchestratorService implements OnModuleInit {
     // package surfaces in monitoring and is not confused with a healthy in-flight
     // package. The log message clearly identifies this as a stuck (not errored) state.
     await this.db.transaction(async (tx) => {
-      await (tx as typeof this.db)
+      await tx
         .update(packages)
         .set({ status: 'FAILED', updatedAt: new Date() })
         .where(eq(packages.id, packageId))
