@@ -4,8 +4,12 @@ import {
   RabbitMQModule,
   RabbitMQConfig,
 } from '@golevelup/nestjs-rabbitmq';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import type { AppConfig } from '../../config/configuration';
 import { EventBusService } from './event-bus.service';
+import { PackageHandler } from './event-handlers/package.handler';
+import { JobHandler } from './event-handlers/job.handler';
+import { AssemblyLineHandler } from './event-handlers/assembly-line.handler';
 
 export { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 
@@ -47,8 +51,9 @@ export function createRabbitMQConfig(
       inject: [ConfigService],
       useFactory: createRabbitMQConfig,
     }),
+    EventEmitterModule.forRoot(),
   ],
-  providers: [EventBusService],
+  providers: [EventBusService, PackageHandler, JobHandler, AssemblyLineHandler],
   exports: [RabbitMQModule, EventBusService],
 })
 export class EventsModule {}

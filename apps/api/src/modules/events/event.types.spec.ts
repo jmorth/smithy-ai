@@ -4,12 +4,14 @@ import type {
   EventEnvelope,
   EventTypeMap,
   PackageCreatedEvent,
+  PackageProcessedEvent,
   WorkerStateChangedEvent,
   JobStartedEvent,
   JobCompletedEvent,
   JobStuckEvent,
   JobErrorEvent,
   AssemblyLineCompletedEvent,
+  AssemblyLineStepCompletedEvent,
   RoutingKey,
 } from './event.types';
 
@@ -39,9 +41,19 @@ describe('event.types', () => {
       expect(EventRoutes.JOB_ERROR).toBe('job.error');
     });
 
+    it('exports PACKAGE_PROCESSED as "package.processed"', () => {
+      expect(EventRoutes.PACKAGE_PROCESSED).toBe('package.processed');
+    });
+
     it('exports ASSEMBLY_LINE_COMPLETED as "assembly-line.completed"', () => {
       expect(EventRoutes.ASSEMBLY_LINE_COMPLETED).toBe(
         'assembly-line.completed',
+      );
+    });
+
+    it('exports ASSEMBLY_LINE_STEP_COMPLETED as "assembly-line.step.completed"', () => {
+      expect(EventRoutes.ASSEMBLY_LINE_STEP_COMPLETED).toBe(
+        'assembly-line.step.completed',
       );
     });
 
@@ -81,12 +93,14 @@ describe('event.types', () => {
       // Compile-time validation that all types exist
       const types: (
         | PackageCreatedEvent
+        | PackageProcessedEvent
         | WorkerStateChangedEvent
         | JobStartedEvent
         | JobCompletedEvent
         | JobStuckEvent
         | JobErrorEvent
         | AssemblyLineCompletedEvent
+        | AssemblyLineStepCompletedEvent
         | undefined
       )[] = [undefined];
       expect(types).toBeDefined();

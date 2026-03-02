@@ -2,12 +2,14 @@ import { describe, it, expect } from 'vitest';
 import type {
   SmithyEvent,
   PackageCreatedEvent,
+  PackageProcessedEvent,
   WorkerStateChangedEvent,
   JobStartedEvent,
   JobCompletedEvent,
   JobStuckEvent,
   JobErrorEvent,
   AssemblyLineCompletedEvent,
+  AssemblyLineStepCompletedEvent,
   EventTypeMap,
 } from './event-types.js';
 import { RoutingKeys } from './routing-keys.js';
@@ -220,6 +222,39 @@ describe('JobErrorEvent', () => {
   });
 });
 
+describe('PackageProcessedEvent', () => {
+  it('can be constructed with all required fields', () => {
+    const event: PackageProcessedEvent = {
+      eventType: 'package.processed',
+      timestamp: '2026-01-01T00:00:00.000Z',
+      correlationId: 'corr-8',
+      payload: {
+        packageId: 'pkg-1',
+        type: 'image/jpeg',
+        resultSummary: 'Processed 10 items successfully',
+      },
+    };
+    expect(event.payload.packageId).toBe('pkg-1');
+    expect(event.payload.resultSummary).toBe('Processed 10 items successfully');
+    expect(event.payload.processedBy).toBeUndefined();
+  });
+
+  it('accepts optional processedBy field', () => {
+    const event: PackageProcessedEvent = {
+      eventType: 'package.processed',
+      timestamp: '2026-01-01T00:00:00.000Z',
+      correlationId: 'corr-8',
+      payload: {
+        packageId: 'pkg-1',
+        type: 'image/jpeg',
+        resultSummary: 'Done',
+        processedBy: 'worker-1',
+      },
+    };
+    expect(event.payload.processedBy).toBe('worker-1');
+  });
+});
+
 describe('AssemblyLineCompletedEvent', () => {
   it('can be constructed with all required fields', () => {
     const event: AssemblyLineCompletedEvent = {
@@ -236,6 +271,27 @@ describe('AssemblyLineCompletedEvent', () => {
     expect(event.payload.assemblyLineId).toBe('al-1');
     expect(event.payload.totalSteps).toBe(5);
     expect(event.payload.totalDuration).toBe(12000);
+  });
+});
+
+describe('AssemblyLineStepCompletedEvent', () => {
+  it('can be constructed with all required fields', () => {
+    const event: AssemblyLineStepCompletedEvent = {
+      eventType: 'assembly-line.step.completed',
+      timestamp: '2026-01-01T00:00:00.000Z',
+      correlationId: 'corr-9',
+      payload: {
+        assemblyLineId: 'al-1',
+        stepIndex: 2,
+        stepName: 'lint',
+        packageId: 'pkg-1',
+        duration: 3500,
+      },
+    };
+    expect(event.payload.assemblyLineId).toBe('al-1');
+    expect(event.payload.stepIndex).toBe(2);
+    expect(event.payload.stepName).toBe('lint');
+    expect(event.payload.duration).toBe(3500);
   });
 });
 

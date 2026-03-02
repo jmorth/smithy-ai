@@ -1,12 +1,14 @@
 export type {
   SmithyEvent as EventEnvelope,
   PackageCreatedEvent,
+  PackageProcessedEvent,
   WorkerStateChangedEvent,
   JobStartedEvent,
   JobCompletedEvent,
   JobStuckEvent,
   JobErrorEvent,
   AssemblyLineCompletedEvent,
+  AssemblyLineStepCompletedEvent,
   EventTypeMap,
 } from '@smithy/shared';
 
