@@ -2,13 +2,21 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import * as amqplib from 'amqplib';
-import { WorkerPoolsService } from './worker-pools.service';
+import { WorkerPoolsService, POOL_ROUTER_SERVICE } from './worker-pools.service';
 import { PoolRouterService, REDIS_CLIENT, RABBITMQ_CHANNEL } from './pool-router.service';
+import { WorkerPoolsController } from './worker-pools.controller';
+import { WorkersModule } from '../../workers/workers.module';
 
 @Module({
+  imports: [WorkersModule],
+  controllers: [WorkerPoolsController],
   providers: [
-    WorkerPoolsService,
     PoolRouterService,
+    {
+      provide: POOL_ROUTER_SERVICE,
+      useExisting: PoolRouterService,
+    },
+    WorkerPoolsService,
     {
       provide: REDIS_CLIENT,
       inject: [ConfigService],

@@ -18,6 +18,7 @@ import {
 import { generateSlug } from '../../../common/slug.util';
 import type { CreateWorkerPoolDto } from './dto/create-worker-pool.dto';
 import type { UpdateWorkerPoolDto } from './dto/update-worker-pool.dto';
+import type { PoolRouterService, RoutingResult } from './pool-router.service';
 
 export type WorkerPoolRecord = typeof workerPools.$inferSelect;
 export type WorkerPoolMemberRecord = typeof workerPoolMembers.$inferSelect;
@@ -37,15 +38,25 @@ export type WorkerPoolWithMembers = WorkerPoolRecord & {
   queueDepth: null;
 };
 
+export type SubmitResult = {
+  package: PackageRecord;
+  routing: RoutingResult;
+};
+
 export type SubmitToPoolDto = {
   type: string;
   metadata?: Record<string, unknown>;
   createdBy?: string;
 };
 
+export const POOL_ROUTER_SERVICE = 'POOL_ROUTER_SERVICE';
+
 @Injectable()
 export class WorkerPoolsService {
-  constructor(@Inject(DRIZZLE) private readonly db: DrizzleClient) {}
+  constructor(
+    @Inject(DRIZZLE) private readonly db: DrizzleClient,
+    @Inject(POOL_ROUTER_SERVICE) private readonly poolRouter: PoolRouterService,
+  ) {}
 
   async create(dto: CreateWorkerPoolDto): Promise<WorkerPoolRecord> {
     const slug = generateSlug(dto.name);
@@ -251,8 +262,8 @@ export class WorkerPoolsService {
     });
   }
 
-  async submit(slug: string, packageData: SubmitToPoolDto): Promise<PackageRecord> {
-    return this.db.transaction(async (tx) => {
+  async submit(slug: string, packageData: SubmitToPoolDto): Promise<SubmitResult> {
+    const pkg = await this.db.transaction(async (tx) => {
       const [pool] = await tx
         .select({ id: workerPools.id, status: workerPools.status })
         .from(workerPools)
@@ -288,7 +299,7 @@ export class WorkerPoolsService {
         );
       }
 
-      const [pkg] = await tx
+      const [created] = await tx
         .insert(packages)
         .values({
           type: packageData.type,
@@ -298,8 +309,10 @@ export class WorkerPoolsService {
         })
         .returning();
 
-      // TODO: delegate to round-robin router (task 049)
-      return pkg!;
+      return created!;
     });
+
+    const routing = await this.poolRouter.route(slug, pkg.id);
+    return { package: pkg, routing };
   }
 }

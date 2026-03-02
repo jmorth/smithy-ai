@@ -438,6 +438,40 @@ describe('PoolRouterService', () => {
 
   // ── releaseSlot ───────────────────────────────────────────────────────────
 
+  describe('getActiveCount', () => {
+    it('returns the active count from Redis', async () => {
+      const { service, mockRedis } = buildService();
+      mockRedis.get.mockResolvedValue('7');
+
+      const result = await service.getActiveCount('my-pool');
+      expect(result).toBe(7);
+    });
+
+    it('returns 0 when Redis key is missing (null)', async () => {
+      const { service, mockRedis } = buildService();
+      mockRedis.get.mockResolvedValue(null);
+
+      const result = await service.getActiveCount('my-pool');
+      expect(result).toBe(0);
+    });
+
+    it('reads from the correct Redis key', async () => {
+      const { service, mockRedis } = buildService();
+      mockRedis.get.mockResolvedValue('2');
+
+      await service.getActiveCount('target-pool');
+      expect(mockRedis.get).toHaveBeenCalledWith('pool:target-pool:active');
+    });
+
+    it('returns null when Redis throws an error', async () => {
+      const { service, mockRedis } = buildService();
+      mockRedis.get.mockRejectedValue(new Error('Redis connection lost'));
+
+      const result = await service.getActiveCount('my-pool');
+      expect(result).toBeNull();
+    });
+  });
+
   describe('releaseSlot', () => {
     it('decrements the active counter for the pool', async () => {
       const { service, mockRedis } = buildService();
