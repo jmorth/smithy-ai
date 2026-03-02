@@ -17,7 +17,7 @@ export async function bootstrap(): Promise<void> {
   const corsOrigin = process.env['CORS_ORIGIN'] ?? 'http://localhost:5173';
   app.enableCors({ origin: corsOrigin });
 
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api', { exclude: ['health'] });
 
   app.enableShutdownHooks();
 

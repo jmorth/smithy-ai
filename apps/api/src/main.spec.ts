@@ -112,12 +112,12 @@ describe('bootstrap (main entry point)', () => {
     });
   });
 
-  it('should set global prefix to "api"', async () => {
+  it('should set global prefix to "api" excluding health endpoint', async () => {
     setupMocks();
     const mod = await import('./main');
     await mod.startupPromise;
 
-    expect(setGlobalPrefixSpy).toHaveBeenCalledWith('api');
+    expect(setGlobalPrefixSpy).toHaveBeenCalledWith('api', { exclude: ['health'] });
   });
 
   it('should enable shutdown hooks', async () => {

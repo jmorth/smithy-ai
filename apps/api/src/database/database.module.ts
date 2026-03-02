@@ -5,7 +5,7 @@ import { PG_POOL, poolProvider, drizzleProvider } from './database.provider';
 @Global()
 @Module({
   providers: [poolProvider, drizzleProvider],
-  exports: [drizzleProvider],
+  exports: [poolProvider, drizzleProvider],
 })
 export class DatabaseModule implements OnModuleDestroy {
   constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
