@@ -10,6 +10,7 @@ describe('bootstrap (main entry point)', () => {
   let enableShutdownHooksSpy: ReturnType<typeof vi.fn>;
   let getSpy: ReturnType<typeof vi.fn>;
   let useGlobalFiltersSpy: ReturnType<typeof vi.fn>;
+  let useGlobalPipesSpy: ReturnType<typeof vi.fn>;
   let mockLogger: { log: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
@@ -20,6 +21,7 @@ describe('bootstrap (main entry point)', () => {
     setGlobalPrefixSpy = vi.fn();
     enableShutdownHooksSpy = vi.fn();
     useGlobalFiltersSpy = vi.fn();
+    useGlobalPipesSpy = vi.fn();
     getSpy = vi.fn().mockReturnValue(mockLogger);
 
     const mockApp: Partial<INestApplication> = {
@@ -29,6 +31,7 @@ describe('bootstrap (main entry point)', () => {
       setGlobalPrefix: setGlobalPrefixSpy,
       enableShutdownHooks: enableShutdownHooksSpy,
       useGlobalFilters: useGlobalFiltersSpy,
+      useGlobalPipes: useGlobalPipesSpy,
       get: getSpy,
     };
 
@@ -54,6 +57,9 @@ describe('bootstrap (main entry point)', () => {
     }));
     vi.doMock('./common/filters/http-exception.filter', () => ({
       HttpExceptionFilter: class HttpExceptionFilter {},
+    }));
+    vi.doMock('./common/pipes/validation.pipe', () => ({
+      globalValidationPipe: {},
     }));
   }
 
@@ -150,5 +156,14 @@ describe('bootstrap (main entry point)', () => {
 
     expect(useGlobalFiltersSpy).toHaveBeenCalledTimes(1);
     expect(useGlobalFiltersSpy).toHaveBeenCalledWith(expect.any(Object));
+  });
+
+  it('should register global validation pipe via useGlobalPipes', async () => {
+    setupMocks();
+    const mod = await import('./main');
+    await mod.startupPromise;
+
+    expect(useGlobalPipesSpy).toHaveBeenCalledTimes(1);
+    expect(useGlobalPipesSpy).toHaveBeenCalledWith(expect.any(Object));
   });
 });
