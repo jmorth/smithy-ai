@@ -1,0 +1,14 @@
+name: "code-reviewer"
+slug: "code-reviewer"
+inputTypes:
+  - "CODE"
+outputType: "CODE"
+provider:
+  name: "anthropic"
+  model: "claude-sonnet-4-20250514"
+  apiKeyEnv: "ANTHROPIC_API_KEY"
+tools:
+  - name: "readFile"
+    description: "Read the contents of a source file from the input package"
+  - name: "listFiles"
+    description: "List all files available in the input package"
