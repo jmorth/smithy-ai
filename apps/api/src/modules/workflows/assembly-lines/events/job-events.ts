@@ -4,6 +4,19 @@ export const JOB_EVENTS = {
   STUCK: 'job.stuck',
 } as const;
 
+/**
+ * Emitted by the orchestrator when a package advances to the next step.
+ * Acts as a placeholder for a future RabbitMQ worker queue publish (task 067).
+ */
+export const WORKER_QUEUE_PUBLISH = 'worker.queue.publish';
+
+export type WorkerQueuePublishEvent = {
+  queueName: string;
+  packageId: string;
+  assemblyLineSlug: string;
+  stepNumber: number;
+};
+
 export type JobCompletedEvent = {
   packageId: string;
   assemblyLineSlug: string;

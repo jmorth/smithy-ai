@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Logger } from '@nestjs/common';
 import { AssemblyLineOrchestratorService } from './assembly-line-orchestrator.service';
 import { OrchestratorEventBus } from './orchestrator-event-bus';
-import { JOB_EVENTS } from './events/job-events';
+import { JOB_EVENTS, WORKER_QUEUE_PUBLISH } from './events/job-events';
 import type { JobCompletedEvent, JobFailedEvent, JobStuckEvent } from './events/job-events';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -105,6 +105,9 @@ describe('AssemblyLineOrchestratorService', () => {
 
       db._updateChain.returning.mockResolvedValueOnce([{ ...pkg, currentStep: 2 }]);
 
+      const queuePublishSpy = vi.fn();
+      eventBus.on(WORKER_QUEUE_PUBLISH, queuePublishSpy);
+
       const event: JobCompletedEvent = {
         packageId: 'pkg-1',
         assemblyLineSlug: 'my-line',
@@ -116,6 +119,13 @@ describe('AssemblyLineOrchestratorService', () => {
 
       expect(db.update).toHaveBeenCalled();
       expect(Logger.prototype.log).toHaveBeenCalled();
+      expect(queuePublishSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          queueName: 'assembly.my-line.step.2',
+          packageId: 'pkg-1',
+          stepNumber: 2,
+        }),
+      );
     });
 
     it('marks package COMPLETED and emits assembly-line.completed on final step', async () => {

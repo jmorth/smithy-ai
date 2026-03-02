@@ -6,6 +6,7 @@ import { packages, assemblyLines, assemblyLineSteps } from '../../../database/sc
 import { OrchestratorEventBus } from './orchestrator-event-bus';
 import {
   JOB_EVENTS,
+  WORKER_QUEUE_PUBLISH,
   type JobCompletedEvent,
   type JobFailedEvent,
   type JobStuckEvent,
@@ -126,6 +127,16 @@ export class AssemblyLineOrchestratorService implements OnModuleInit {
         this.logger.log(
           `Package ${packageId} advanced to step ${nextStep} on "${assemblyLineSlug}" — queue: ${queueName}`,
         );
+
+        // Placeholder for RabbitMQ publish (task 067). Emits a dispatch event
+        // that future consumers (e.g. the event bus bridge) will forward to the
+        // actual worker queue.
+        this.eventBus.emit(WORKER_QUEUE_PUBLISH, {
+          queueName,
+          packageId,
+          assemblyLineSlug,
+          stepNumber: nextStep,
+        });
       }
     });
   }

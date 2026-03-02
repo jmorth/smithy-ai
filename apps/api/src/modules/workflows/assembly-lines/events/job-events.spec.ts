@@ -43,4 +43,9 @@ describe('job event interfaces', () => {
     expect(m.JOB_EVENTS.FAILED).toBe('job.failed');
     expect(m.JOB_EVENTS.STUCK).toBe('job.stuck');
   });
+
+  it('WORKER_QUEUE_PUBLISH constant is defined', async () => {
+    const m = await import('./job-events');
+    expect(m.WORKER_QUEUE_PUBLISH).toBe('worker.queue.publish');
+  });
 });
