@@ -5,6 +5,7 @@ import {
   RabbitMQConfig,
 } from '@golevelup/nestjs-rabbitmq';
 import type { AppConfig } from '../../config/configuration';
+import { EventBusService } from './event-bus.service';
 
 export { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 
@@ -47,6 +48,7 @@ export function createRabbitMQConfig(
       useFactory: createRabbitMQConfig,
     }),
   ],
-  exports: [RabbitMQModule],
+  providers: [EventBusService],
+  exports: [RabbitMQModule, EventBusService],
 })
 export class EventsModule {}
