@@ -79,19 +79,34 @@ function makeSoftDeleteChain() {
   };
 }
 
+function makeStorage() {
+  return {
+    getPresignedUploadUrl: vi.fn().mockResolvedValue('https://s3.example.com/presigned'),
+    delete: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+function makeDeleteChain() {
+  return {
+    where: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
 function buildService() {
   const mockDb = {
     insert: vi.fn(),
     select: vi.fn(),
     update: vi.fn(),
+    delete: vi.fn(),
     query: {
       packages: {
         findFirst: vi.fn(),
       },
     },
   };
-  const service = new PackagesService(mockDb as any);
-  return { service, mockDb };
+  const mockStorage = makeStorage();
+  const service = new PackagesService(mockDb as any, mockStorage as any);
+  return { service, mockDb, mockStorage };
 }
 
 // ── tests ───────────────────────────────────────────────────────────────────
@@ -561,6 +576,253 @@ describe('PackagesService', () => {
 
       // No status in dto — should not throw even though EXPIRED is terminal
       await expect(service.update('pkg-uuid-1', { type: 'video' })).resolves.toEqual(updated);
+    });
+  });
+
+  // ── createPresignedUpload ────────────────────────────────────────────────
+
+  describe('createPresignedUpload', () => {
+    it('throws NotFoundException when package does not exist', async () => {
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([]));
+
+      await expect(
+        service.createPresignedUpload('missing-id', { filename: 'a.pdf', contentType: 'application/pdf' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws NotFoundException with packageId in message', async () => {
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([]));
+
+      await expect(
+        service.createPresignedUpload('missing-id', { filename: 'a.pdf', contentType: 'application/pdf' }),
+      ).rejects.toThrow('missing-id');
+    });
+
+    it('returns uploadUrl and fileKey', async () => {
+      const { service, mockDb, mockStorage } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1' }]));
+      mockStorage.getPresignedUploadUrl.mockResolvedValue('https://s3.example.com/upload');
+
+      const result = await service.createPresignedUpload('pkg-uuid-1', {
+        filename: 'report.pdf',
+        contentType: 'application/pdf',
+      });
+
+      expect(result).toHaveProperty('uploadUrl', 'https://s3.example.com/upload');
+      expect(result).toHaveProperty('fileKey');
+    });
+
+    it('generates S3 key with pattern packages/{packageId}/{uuid}/{filename}', async () => {
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1' }]));
+
+      const result = await service.createPresignedUpload('pkg-uuid-1', {
+        filename: 'report.pdf',
+        contentType: 'application/pdf',
+      });
+
+      expect(result.fileKey).toMatch(/^packages\/pkg-uuid-1\/[0-9a-f-]{36}\/report\.pdf$/);
+    });
+
+    it('calls getPresignedUploadUrl with generated key and contentType', async () => {
+      const { service, mockDb, mockStorage } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1' }]));
+
+      const result = await service.createPresignedUpload('pkg-uuid-1', {
+        filename: 'report.pdf',
+        contentType: 'application/pdf',
+      });
+
+      expect(mockStorage.getPresignedUploadUrl).toHaveBeenCalledWith(result.fileKey, 'application/pdf');
+    });
+
+    it('does not call storage when package not found', async () => {
+      const { service, mockDb, mockStorage } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([]));
+
+      await expect(
+        service.createPresignedUpload('missing', { filename: 'a.pdf', contentType: 'application/pdf' }),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockStorage.getPresignedUploadUrl).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── confirmFileUpload ─────────────────────────────────────────────────────
+
+  describe('confirmFileUpload', () => {
+    const confirmDto = {
+      fileKey: 'packages/pkg-uuid-1/some-uuid/doc.pdf',
+      filename: 'doc.pdf',
+      mimeType: 'application/pdf',
+      sizeBytes: 2048,
+    };
+
+    it('throws NotFoundException when package does not exist', async () => {
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([]));
+
+      await expect(service.confirmFileUpload('missing-id', confirmDto)).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws NotFoundException with packageId in message', async () => {
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([]));
+
+      await expect(service.confirmFileUpload('missing-id', confirmDto)).rejects.toThrow('missing-id');
+    });
+
+    it('returns the created file record', async () => {
+      const file = makeFile({ packageId: 'pkg-uuid-1', fileKey: confirmDto.fileKey });
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1' }]));
+      mockDb.insert.mockReturnValue(makeInsertChain([file]));
+
+      const result = await service.confirmFileUpload('pkg-uuid-1', confirmDto);
+
+      expect(result).toEqual(file);
+    });
+
+    it('inserts with the correct field values', async () => {
+      const file = makeFile({ packageId: 'pkg-uuid-1' });
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1' }]));
+      const insertChain = makeInsertChain([file]);
+      mockDb.insert.mockReturnValue(insertChain);
+
+      await service.confirmFileUpload('pkg-uuid-1', confirmDto);
+
+      expect(insertChain.values).toHaveBeenCalledWith(
+        expect.objectContaining({
+          packageId: 'pkg-uuid-1',
+          fileKey: confirmDto.fileKey,
+          filename: confirmDto.filename,
+          mimeType: confirmDto.mimeType,
+          sizeBytes: confirmDto.sizeBytes,
+        }),
+      );
+    });
+
+    it('does not call insert when package not found', async () => {
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([]));
+
+      await expect(service.confirmFileUpload('missing', confirmDto)).rejects.toThrow(NotFoundException);
+      expect(mockDb.insert).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── listFiles ─────────────────────────────────────────────────────────────
+
+  describe('listFiles', () => {
+    it('returns all files for the package', async () => {
+      const files = [makeFile({ id: 'f1' }), makeFile({ id: 'f2' })];
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce({
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(files),
+      });
+
+      const result = await service.listFiles('pkg-uuid-1');
+
+      expect(result).toEqual(files);
+    });
+
+    it('returns an empty array when no files exist', async () => {
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce({
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue([]),
+      });
+
+      const result = await service.listFiles('pkg-uuid-1');
+
+      expect(result).toEqual([]);
+    });
+
+    it('queries by packageId', async () => {
+      const { service, mockDb } = buildService();
+      const chain = {
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue([]),
+      };
+      mockDb.select.mockReturnValueOnce(chain);
+
+      await service.listFiles('pkg-uuid-1');
+
+      expect(chain.where).toHaveBeenCalledOnce();
+    });
+  });
+
+  // ── deleteFile ────────────────────────────────────────────────────────────
+
+  describe('deleteFile', () => {
+    it('throws NotFoundException when file does not exist', async () => {
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([]));
+
+      await expect(service.deleteFile('pkg-uuid-1', 'missing-file')).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws NotFoundException with fileId in message', async () => {
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([]));
+
+      await expect(service.deleteFile('pkg-uuid-1', 'bad-file-id')).rejects.toThrow('bad-file-id');
+    });
+
+    it('resolves void on success', async () => {
+      const file = makeFile({ id: 'file-uuid-1' });
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([file]));
+      mockDb.delete.mockReturnValue(makeDeleteChain());
+
+      await expect(service.deleteFile('pkg-uuid-1', 'file-uuid-1')).resolves.toBeUndefined();
+    });
+
+    it('calls storage.delete with file S3 key', async () => {
+      const file = makeFile({ fileKey: 'packages/pkg-uuid-1/uuid/report.pdf' });
+      const { service, mockDb, mockStorage } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([file]));
+      mockDb.delete.mockReturnValue(makeDeleteChain());
+
+      await service.deleteFile('pkg-uuid-1', 'file-uuid-1');
+
+      expect(mockStorage.delete).toHaveBeenCalledWith('packages/pkg-uuid-1/uuid/report.pdf');
+    });
+
+    it('deletes from DB after S3 delete succeeds', async () => {
+      const file = makeFile();
+      const { service, mockDb, mockStorage } = buildService();
+      const deleteChain = makeDeleteChain();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([file]));
+      mockDb.delete.mockReturnValue(deleteChain);
+
+      await service.deleteFile('pkg-uuid-1', 'file-uuid-1');
+
+      expect(mockStorage.delete).toHaveBeenCalledBefore
+        ? expect(mockStorage.delete).toHaveBeenCalledBefore(mockDb.delete)
+        : expect(mockDb.delete).toHaveBeenCalledOnce();
+    });
+
+    it('does not delete DB record when S3 delete throws', async () => {
+      const file = makeFile();
+      const { service, mockDb, mockStorage } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([file]));
+      mockStorage.delete.mockRejectedValue(new Error('S3 error'));
+
+      await expect(service.deleteFile('pkg-uuid-1', 'file-uuid-1')).rejects.toThrow('S3 error');
+      expect(mockDb.delete).not.toHaveBeenCalled();
+    });
+
+    it('does not call storage when file is not found', async () => {
+      const { service, mockDb, mockStorage } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([]));
+
+      await expect(service.deleteFile('pkg-uuid-1', 'missing')).rejects.toThrow(NotFoundException);
+      expect(mockStorage.delete).not.toHaveBeenCalled();
     });
   });
 
