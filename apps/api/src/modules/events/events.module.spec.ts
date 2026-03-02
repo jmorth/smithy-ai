@@ -7,6 +7,7 @@ import {
   SMITHY_EVENTS_DLX,
   createRabbitMQConfig,
 } from './events.module';
+import { EventBusService } from './event-bus.service';
 
 const mockConfigService = {
   get: vi.fn((key: string) => {
@@ -34,6 +35,16 @@ describe('EventsModule', () => {
     it('exports RabbitMQModule for AmqpConnection access', () => {
       const exports = Reflect.getMetadata('exports', EventsModule) as unknown[];
       expect(exports).toContain(RabbitMQModule);
+    });
+
+    it('provides EventBusService', () => {
+      const providers = Reflect.getMetadata('providers', EventsModule) as unknown[];
+      expect(providers).toContain(EventBusService);
+    });
+
+    it('exports EventBusService for injection in other modules', () => {
+      const exports = Reflect.getMetadata('exports', EventsModule) as unknown[];
+      expect(exports).toContain(EventBusService);
     });
   });
 
