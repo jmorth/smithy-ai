@@ -112,6 +112,12 @@ describe("docker-compose.yml", () => {
     expect(deps).toHaveProperty("minio");
   });
 
+  it("minio-init entrypoint creates smithy bucket", () => {
+    const entrypoint = services["minio-init"].entrypoint as string;
+    expect(entrypoint).toContain("mc mb");
+    expect(entrypoint).toContain("smithy");
+  });
+
   it("minio-init is on smithy network", () => {
     const nets = services["minio-init"].networks as string[];
     expect(nets).toContain("smithy");
