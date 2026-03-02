@@ -12,12 +12,19 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "test": "turbo test",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "test:docker": "bun test docker/tests/"
   },
   "devDependencies": {
-    "turbo": "^2.0.0"
+    "turbo": "^2.0.0",
+    "yaml": "^2.8.2"
   },
   "pnpm": {
     "onlyBuiltDependencies": ["@nestjs/core", "esbuild"]
-  }
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "workers/*"
+  ]
 }
