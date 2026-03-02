@@ -1,0 +1,14 @@
+node_modules
+.git
+*.md
+dist
+.env*
+coverage
+.coverage
+**/.nyc_output
+**/coverage
+**/*.spec.ts
+**/*.test.ts
+.turbo
+.cache
+__tests__
