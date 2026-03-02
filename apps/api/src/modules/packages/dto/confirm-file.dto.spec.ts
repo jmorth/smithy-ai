@@ -44,6 +44,15 @@ describe('ConfirmFileDto', () => {
     expect(error!.constraints).toBeDefined();
   });
 
+  it('fails when filename is empty string', async () => {
+    const dto = plainToInstance(ConfirmFileDto, { ...validPayload, filename: '' });
+    const errors = await validate(dto);
+    const error = errors.find((e) => e.property === 'filename');
+    expect(error).toBeDefined();
+    expect(error!.constraints).toBeDefined();
+    expect(Object.values(error!.constraints!).join(' ')).toContain('empty');
+  });
+
   it('fails when mimeType is missing', async () => {
     const { mimeType: _, ...rest } = validPayload;
     const dto = plainToInstance(ConfirmFileDto, rest);
@@ -51,6 +60,15 @@ describe('ConfirmFileDto', () => {
     const error = errors.find((e) => e.property === 'mimeType');
     expect(error).toBeDefined();
     expect(error!.constraints).toBeDefined();
+  });
+
+  it('fails when mimeType is empty string', async () => {
+    const dto = plainToInstance(ConfirmFileDto, { ...validPayload, mimeType: '' });
+    const errors = await validate(dto);
+    const error = errors.find((e) => e.property === 'mimeType');
+    expect(error).toBeDefined();
+    expect(error!.constraints).toBeDefined();
+    expect(Object.values(error!.constraints!).join(' ')).toContain('empty');
   });
 
   it('fails when sizeBytes is missing', async () => {
