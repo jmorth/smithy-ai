@@ -51,6 +51,7 @@ export class PackagesController {
   }
 
   @Post(':id/files/presign')
+  @HttpCode(HttpStatus.OK)
   presignUpload(@Param('id', ParseUUIDPipe) id: string, @Body() dto: PresignFileDto) {
     return this.packagesService.createPresignedUpload(id, dto);
   }
