@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { RealtimeModule } from './realtime.module';
+import { AssemblyLinesModule } from '../workflows/assembly-lines/assembly-lines.module';
+import { WorkerPoolsModule } from '../workflows/worker-pools/worker-pools.module';
 import { WorkflowsGateway } from './workflows.gateway';
 import { JobsGateway } from './jobs.gateway';
 import { InteractiveGateway } from './interactive.gateway';
@@ -9,6 +11,30 @@ describe('RealtimeModule', () => {
     it('is decorated with @Global()', () => {
       const metadata = Reflect.getMetadata('__module:global__', RealtimeModule);
       expect(metadata).toBe(true);
+    });
+
+    it('imports AssemblyLinesModule', () => {
+      const imports = Reflect.getMetadata(
+        'imports',
+        RealtimeModule,
+      ) as unknown[];
+      expect(imports).toContain(AssemblyLinesModule);
+    });
+
+    it('imports WorkerPoolsModule', () => {
+      const imports = Reflect.getMetadata(
+        'imports',
+        RealtimeModule,
+      ) as unknown[];
+      expect(imports).toContain(WorkerPoolsModule);
+    });
+
+    it('imports exactly two modules', () => {
+      const imports = Reflect.getMetadata(
+        'imports',
+        RealtimeModule,
+      ) as unknown[];
+      expect(imports).toHaveLength(2);
     });
 
     it('provides WorkflowsGateway', () => {
