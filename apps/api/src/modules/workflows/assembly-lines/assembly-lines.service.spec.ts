@@ -1062,5 +1062,47 @@ describe('AssemblyLinesService', () => {
       await service.submit('my-pipeline', packageData);
       expect(mockDb.transaction).toHaveBeenCalledOnce();
     });
+
+    it('throws BadRequestException when assembly line is PAUSED', async () => {
+      const pausedLine = makeAssemblyLine({ status: 'PAUSED' });
+      const { service, mockDb } = buildService();
+
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        const tx = makeTx({
+          select: vi.fn().mockReturnValueOnce(makeSelectChain([pausedLine])),
+        });
+        return fn(tx);
+      });
+
+      await expect(service.submit('my-pipeline', packageData)).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws BadRequestException when assembly line is ARCHIVED', async () => {
+      const archivedLine = makeAssemblyLine({ status: 'ARCHIVED' });
+      const { service, mockDb } = buildService();
+
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        const tx = makeTx({
+          select: vi.fn().mockReturnValueOnce(makeSelectChain([archivedLine])),
+        });
+        return fn(tx);
+      });
+
+      await expect(service.submit('my-pipeline', packageData)).rejects.toThrow(BadRequestException);
+    });
+
+    it('includes the status in the BadRequestException message for PAUSED', async () => {
+      const pausedLine = makeAssemblyLine({ status: 'PAUSED' });
+      const { service, mockDb } = buildService();
+
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        const tx = makeTx({
+          select: vi.fn().mockReturnValueOnce(makeSelectChain([pausedLine])),
+        });
+        return fn(tx);
+      });
+
+      await expect(service.submit('my-pipeline', packageData)).rejects.toThrow('PAUSED');
+    });
   });
 });
