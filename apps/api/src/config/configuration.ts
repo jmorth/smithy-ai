@@ -29,6 +29,9 @@ export interface AppConfig {
   email: {
     resendApiKey?: string;
   };
+  containers: {
+    concurrencyLimit: number;
+  };
 }
 
 export function configuration(): AppConfig {
@@ -71,6 +74,9 @@ export function configuration(): AppConfig {
     },
     email: {
       resendApiKey: env.RESEND_API_KEY,
+    },
+    containers: {
+      concurrencyLimit: env.CONTAINER_CONCURRENCY_LIMIT,
     },
   };
 }
