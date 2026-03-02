@@ -1,5 +1,5 @@
 import { Injectable, Inject, ConflictException, NotFoundException } from '@nestjs/common';
-import { and, eq, max } from 'drizzle-orm';
+import { and, desc, eq, max } from 'drizzle-orm';
 import { DRIZZLE } from '../../database/database.constants';
 import type { DrizzleClient } from '../../database/database.provider';
 import { workers, workerVersions } from '../../database/schema';
@@ -71,8 +71,15 @@ export class WorkersService {
     });
   }
 
-  async findAll(): Promise<WorkerRecord[]> {
-    return this.db.select().from(workers);
+  async findAll(): Promise<(WorkerRecord & { versions: WorkerVersionRecord[] })[]> {
+    return this.db.query.workers.findMany({
+      with: {
+        versions: {
+          orderBy: [desc(workerVersions.version)],
+          limit: 1,
+        },
+      },
+    }) as unknown as (WorkerRecord & { versions: WorkerVersionRecord[] })[];
   }
 
   async findBySlug(slug: string): Promise<WorkerWithVersions> {
@@ -136,32 +143,34 @@ export class WorkersService {
   }
 
   async deprecateVersion(slug: string, version: number): Promise<WorkerVersionRecord> {
-    const [worker] = await this.db
-      .select({ id: workers.id })
-      .from(workers)
-      .where(eq(workers.slug, slug))
-      .limit(1);
+    return this.db.transaction(async (tx) => {
+      const [worker] = await tx
+        .select({ id: workers.id })
+        .from(workers)
+        .where(eq(workers.slug, slug))
+        .limit(1);
 
-    if (!worker) {
-      throw new NotFoundException(`Worker "${slug}" not found`);
-    }
+      if (!worker) {
+        throw new NotFoundException(`Worker "${slug}" not found`);
+      }
 
-    const [versionRow] = await this.db
-      .select()
-      .from(workerVersions)
-      .where(and(eq(workerVersions.workerId, worker.id), eq(workerVersions.version, version)))
-      .limit(1);
+      const [versionRow] = await tx
+        .select()
+        .from(workerVersions)
+        .where(and(eq(workerVersions.workerId, worker.id), eq(workerVersions.version, version)))
+        .limit(1);
 
-    if (!versionRow) {
-      throw new NotFoundException(`Version ${version} not found for worker "${slug}"`);
-    }
+      if (!versionRow) {
+        throw new NotFoundException(`Version ${version} not found for worker "${slug}"`);
+      }
 
-    const [updated] = await this.db
-      .update(workerVersions)
-      .set({ status: 'DEPRECATED' })
-      .where(eq(workerVersions.id, versionRow.id))
-      .returning();
+      const [updated] = await tx
+        .update(workerVersions)
+        .set({ status: 'DEPRECATED' })
+        .where(eq(workerVersions.id, versionRow.id))
+        .returning();
 
-    return updated!;
+      return updated!;
+    });
   }
 }

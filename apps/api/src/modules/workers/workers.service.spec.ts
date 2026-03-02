@@ -69,7 +69,10 @@ function buildService() {
     select: vi.fn(),
     update: vi.fn(),
     query: {
-      workers: { findFirst: vi.fn() },
+      workers: {
+        findFirst: vi.fn(),
+        findMany: vi.fn(),
+      },
     },
     transaction: vi.fn(),
   };
@@ -274,32 +277,41 @@ describe('WorkersService', () => {
   });
 
   describe('findAll', () => {
-    it('returns all workers', async () => {
-      const allWorkers = [makeWorker({ id: 'a' }), makeWorker({ id: 'b' })];
+    it('returns all workers with latest version info', async () => {
+      const allWorkers = [
+        { ...makeWorker({ id: 'a' }), versions: [makeVersion({ version: 2 })] },
+        { ...makeWorker({ id: 'b' }), versions: [] },
+      ];
       const { service, mockDb } = buildService();
-      mockDb.select.mockReturnValueOnce({
-        from: vi.fn().mockResolvedValue(allWorkers),
-      });
+      mockDb.query.workers.findMany.mockResolvedValue(allWorkers);
       const result = await service.findAll();
       expect(result).toEqual(allWorkers);
     });
 
     it('returns empty array when no workers exist', async () => {
       const { service, mockDb } = buildService();
-      mockDb.select.mockReturnValueOnce({
-        from: vi.fn().mockResolvedValue([]),
-      });
+      mockDb.query.workers.findMany.mockResolvedValue([]);
       const result = await service.findAll();
       expect(result).toEqual([]);
     });
 
-    it('calls select once', async () => {
+    it('calls findMany with versions relation', async () => {
       const { service, mockDb } = buildService();
-      mockDb.select.mockReturnValueOnce({
-        from: vi.fn().mockResolvedValue([]),
-      });
+      mockDb.query.workers.findMany.mockResolvedValue([]);
       await service.findAll();
-      expect(mockDb.select).toHaveBeenCalledOnce();
+      expect(mockDb.query.workers.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          with: expect.objectContaining({ versions: expect.anything() }),
+        }),
+      );
+    });
+
+    it('limits to 1 version per worker (latest only)', async () => {
+      const { service, mockDb } = buildService();
+      mockDb.query.workers.findMany.mockResolvedValue([]);
+      await service.findAll();
+      const callArg = mockDb.query.workers.findMany.mock.calls[0][0] as any;
+      expect(callArg.with.versions).toMatchObject({ limit: 1 });
     });
   });
 
@@ -486,88 +498,142 @@ describe('WorkersService', () => {
   });
 
   describe('deprecateVersion', () => {
+    function makeDeprecateTx(
+      workerResult: unknown,
+      versionResult: unknown,
+      updateResult?: unknown,
+    ) {
+      const tx = makeTx({
+        select: vi.fn()
+          .mockReturnValueOnce(makeSelectChain(workerResult))
+          .mockReturnValueOnce(makeSelectChain(versionResult)),
+        update: updateResult !== undefined
+          ? vi.fn().mockReturnValue(makeUpdateChain(updateResult))
+          : vi.fn(),
+      });
+      return tx;
+    }
+
     it('returns the updated version with DEPRECATED status', async () => {
-      const worker = makeWorker();
       const deprecated = makeVersion({ status: 'DEPRECATED' });
       const { service, mockDb } = buildService();
-      mockDb.select
-        .mockReturnValueOnce(makeSelectChain([worker]))
-        .mockReturnValueOnce(makeSelectChain([makeVersion()]));
-      mockDb.update.mockReturnValue(makeUpdateChain([deprecated]));
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        return fn(makeDeprecateTx([makeWorker()], [makeVersion()], [deprecated]));
+      });
       const result = await service.deprecateVersion('my-worker', 1);
       expect(result.status).toBe('DEPRECATED');
     });
 
     it('throws NotFoundException when worker does not exist', async () => {
       const { service, mockDb } = buildService();
-      mockDb.select.mockReturnValueOnce(makeSelectChain([]));
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        const tx = makeTx({
+          select: vi.fn().mockReturnValueOnce(makeSelectChain([])),
+        });
+        return fn(tx);
+      });
       await expect(service.deprecateVersion('nonexistent', 1)).rejects.toThrow(NotFoundException);
     });
 
     it('throws NotFoundException with slug in message when worker not found', async () => {
       const { service, mockDb } = buildService();
-      mockDb.select.mockReturnValueOnce(makeSelectChain([]));
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        const tx = makeTx({
+          select: vi.fn().mockReturnValueOnce(makeSelectChain([])),
+        });
+        return fn(tx);
+      });
       await expect(service.deprecateVersion('missing-slug', 1)).rejects.toThrow('missing-slug');
     });
 
     it('throws NotFoundException when version does not exist for the worker', async () => {
-      const worker = makeWorker();
       const { service, mockDb } = buildService();
-      mockDb.select
-        .mockReturnValueOnce(makeSelectChain([worker]))
-        .mockReturnValueOnce(makeSelectChain([]));
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        return fn(makeDeprecateTx([makeWorker()], []));
+      });
       await expect(service.deprecateVersion('my-worker', 99)).rejects.toThrow(NotFoundException);
     });
 
     it('throws NotFoundException with version number in message when version not found', async () => {
-      const worker = makeWorker();
       const { service, mockDb } = buildService();
-      mockDb.select
-        .mockReturnValueOnce(makeSelectChain([worker]))
-        .mockReturnValueOnce(makeSelectChain([]));
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        return fn(makeDeprecateTx([makeWorker()], []));
+      });
       await expect(service.deprecateVersion('my-worker', 99)).rejects.toThrow('99');
     });
 
     it('sets status to DEPRECATED in the update call', async () => {
-      const worker = makeWorker();
       const deprecated = makeVersion({ status: 'DEPRECATED' });
       const { service, mockDb } = buildService();
-      const updateChain = makeUpdateChain([deprecated]);
-      mockDb.select
-        .mockReturnValueOnce(makeSelectChain([worker]))
-        .mockReturnValueOnce(makeSelectChain([makeVersion()]));
-      mockDb.update.mockReturnValue(updateChain);
+      let capturedSet: Record<string, unknown> | null = null;
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        const updateChain = {
+          set: vi.fn().mockImplementation((v: Record<string, unknown>) => {
+            capturedSet = v;
+            return { where: vi.fn().mockReturnValue({ returning: vi.fn().mockResolvedValue([deprecated]) }) };
+          }),
+        };
+        const tx = makeTx({
+          select: vi.fn()
+            .mockReturnValueOnce(makeSelectChain([makeWorker()]))
+            .mockReturnValueOnce(makeSelectChain([makeVersion()])),
+          update: vi.fn().mockReturnValue(updateChain),
+        });
+        return fn(tx);
+      });
       await service.deprecateVersion('my-worker', 1);
-      const setCall = updateChain.set.mock.calls[0][0] as Record<string, unknown>;
-      expect(setCall).toMatchObject({ status: 'DEPRECATED' });
+      expect(capturedSet).toMatchObject({ status: 'DEPRECATED' });
     });
 
     it('does not throw if version is already DEPRECATED (idempotent)', async () => {
-      const worker = makeWorker();
       const already = makeVersion({ status: 'DEPRECATED' });
       const { service, mockDb } = buildService();
-      mockDb.select
-        .mockReturnValueOnce(makeSelectChain([worker]))
-        .mockReturnValueOnce(makeSelectChain([already]));
-      mockDb.update.mockReturnValue(makeUpdateChain([already]));
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        return fn(makeDeprecateTx([makeWorker()], [already], [already]));
+      });
       await expect(service.deprecateVersion('my-worker', 1)).resolves.toEqual(already);
     });
 
     it('does not call update when worker is not found', async () => {
       const { service, mockDb } = buildService();
-      mockDb.select.mockReturnValueOnce(makeSelectChain([]));
+      let txUpdate: any;
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        const tx = makeTx({
+          select: vi.fn().mockReturnValueOnce(makeSelectChain([])),
+          update: vi.fn(),
+        });
+        txUpdate = tx.update;
+        return fn(tx);
+      });
       await expect(service.deprecateVersion('missing', 1)).rejects.toThrow(NotFoundException);
-      expect(mockDb.update).not.toHaveBeenCalled();
+      expect(txUpdate).not.toHaveBeenCalled();
     });
 
     it('does not call update when version is not found', async () => {
-      const worker = makeWorker();
       const { service, mockDb } = buildService();
-      mockDb.select
-        .mockReturnValueOnce(makeSelectChain([worker]))
-        .mockReturnValueOnce(makeSelectChain([]));
+      let txUpdate: any;
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        const tx = makeTx({
+          select: vi.fn()
+            .mockReturnValueOnce(makeSelectChain([makeWorker()]))
+            .mockReturnValueOnce(makeSelectChain([])),
+          update: vi.fn(),
+        });
+        txUpdate = tx.update;
+        return fn(tx);
+      });
       await expect(service.deprecateVersion('my-worker', 99)).rejects.toThrow(NotFoundException);
-      expect(mockDb.update).not.toHaveBeenCalled();
+      expect(txUpdate).not.toHaveBeenCalled();
+    });
+
+    it('wraps execution in a transaction', async () => {
+      const deprecated = makeVersion({ status: 'DEPRECATED' });
+      const { service, mockDb } = buildService();
+      mockDb.transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        return fn(makeDeprecateTx([makeWorker()], [makeVersion()], [deprecated]));
+      });
+      await service.deprecateVersion('my-worker', 1);
+      expect(mockDb.transaction).toHaveBeenCalledOnce();
     });
   });
 });
