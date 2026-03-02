@@ -4,6 +4,7 @@ import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { globalValidationPipe } from './common/pipes/validation.pipe';
+import { RedisIoAdapter } from './modules/realtime/redis-io.adapter';
 
 export async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -16,6 +17,13 @@ export async function bootstrap(): Promise<void> {
 
   const corsOrigin = process.env['CORS_ORIGIN'] ?? 'http://localhost:5173';
   app.enableCors({ origin: corsOrigin });
+
+  const redisIoAdapter = new RedisIoAdapter(app, corsOrigin);
+  const redisUrl = process.env['REDIS_URL'];
+  if (redisUrl) {
+    await redisIoAdapter.connectToRedis(redisUrl);
+  }
+  app.useWebSocketAdapter(redisIoAdapter);
 
   app.setGlobalPrefix('api', { exclude: ['health'] });
 

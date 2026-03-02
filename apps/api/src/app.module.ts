@@ -11,6 +11,7 @@ import { AssemblyLinesModule } from './modules/workflows/assembly-lines/assembly
 import { WorkerPoolsModule } from './modules/workflows/worker-pools/worker-pools.module';
 import { ContainersModule } from './modules/containers/containers.module';
 import { EventsModule } from './modules/events/events.module';
+import { RealtimeModule } from './modules/realtime/realtime.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { EventsModule } from './modules/events/events.module';
     AssemblyLinesModule,
     WorkerPoolsModule,
     ContainersModule,
+    RealtimeModule,
     LoggerModule.forRoot({
       pinoHttp: {
         transport:

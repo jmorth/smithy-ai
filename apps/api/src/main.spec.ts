@@ -11,6 +11,7 @@ describe('bootstrap (main entry point)', () => {
   let getSpy: ReturnType<typeof vi.fn>;
   let useGlobalFiltersSpy: ReturnType<typeof vi.fn>;
   let useGlobalPipesSpy: ReturnType<typeof vi.fn>;
+  let useWebSocketAdapterSpy: ReturnType<typeof vi.fn>;
   let mockLogger: { log: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
@@ -22,6 +23,7 @@ describe('bootstrap (main entry point)', () => {
     enableShutdownHooksSpy = vi.fn();
     useGlobalFiltersSpy = vi.fn();
     useGlobalPipesSpy = vi.fn();
+    useWebSocketAdapterSpy = vi.fn();
     getSpy = vi.fn().mockReturnValue(mockLogger);
 
     const mockApp: Partial<INestApplication> = {
@@ -32,6 +34,7 @@ describe('bootstrap (main entry point)', () => {
       enableShutdownHooks: enableShutdownHooksSpy,
       useGlobalFilters: useGlobalFiltersSpy,
       useGlobalPipes: useGlobalPipesSpy,
+      useWebSocketAdapter: useWebSocketAdapterSpy,
       get: getSpy,
     };
 
@@ -43,6 +46,7 @@ describe('bootstrap (main entry point)', () => {
     vi.restoreAllMocks();
     delete process.env['APP_PORT'];
     delete process.env['CORS_ORIGIN'];
+    delete process.env['REDIS_URL'];
   });
 
   function setupMocks() {
@@ -60,6 +64,11 @@ describe('bootstrap (main entry point)', () => {
     }));
     vi.doMock('./common/pipes/validation.pipe', () => ({
       globalValidationPipe: {},
+    }));
+    vi.doMock('./modules/realtime/redis-io.adapter', () => ({
+      RedisIoAdapter: vi.fn().mockImplementation(() => ({
+        connectToRedis: vi.fn().mockResolvedValue(undefined),
+      })),
     }));
   }
 
@@ -165,5 +174,22 @@ describe('bootstrap (main entry point)', () => {
 
     expect(useGlobalPipesSpy).toHaveBeenCalledTimes(1);
     expect(useGlobalPipesSpy).toHaveBeenCalledWith(expect.any(Object));
+  });
+
+  it('should register the WebSocket adapter', async () => {
+    setupMocks();
+    const mod = await import('./main');
+    await mod.startupPromise;
+
+    expect(useWebSocketAdapterSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should connect Redis adapter when REDIS_URL is set', async () => {
+    process.env['REDIS_URL'] = 'redis://localhost:6379';
+    setupMocks();
+    const mod = await import('./main');
+    await mod.startupPromise;
+
+    expect(useWebSocketAdapterSpy).toHaveBeenCalledTimes(1);
   });
 });
