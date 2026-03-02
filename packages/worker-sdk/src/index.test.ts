@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import * as sdk from './index.js';
 import * as baseWorker from './base-worker.js';
 import * as context from './context.js';
+import * as inputPackage from './input-package.js';
+import * as outputBuilder from './output-builder.js';
+import * as errors from './errors.js';
 import * as ai from './ai.js';
 import * as apiClient from './api-client.js';
 import * as runner from './runner.js';
@@ -27,6 +30,18 @@ describe('@smithy/worker-sdk submodule barrels', () => {
     expect(typeof context).toBe('object');
   });
 
+  it('input-package module is an object', () => {
+    expect(typeof inputPackage).toBe('object');
+  });
+
+  it('output-builder module is an object', () => {
+    expect(typeof outputBuilder).toBe('object');
+  });
+
+  it('errors module is an object', () => {
+    expect(typeof errors).toBe('object');
+  });
+
   it('ai module is an object', () => {
     expect(typeof ai).toBe('object');
   });
@@ -40,13 +55,25 @@ describe('@smithy/worker-sdk submodule barrels', () => {
   });
 });
 
-describe('@smithy/worker-sdk placeholder classes', () => {
+describe('@smithy/worker-sdk exported classes', () => {
   it('SmithyWorker is exported as a class', () => {
     expect(typeof sdk.SmithyWorker).toBe('function');
   });
 
   it('WorkerContext is exported as a class', () => {
     expect(typeof sdk.WorkerContext).toBe('function');
+  });
+
+  it('InputPackageImpl is exported as a class', () => {
+    expect(typeof sdk.InputPackageImpl).toBe('function');
+  });
+
+  it('OutputBuilderImpl is exported as a class', () => {
+    expect(typeof sdk.OutputBuilderImpl).toBe('function');
+  });
+
+  it('QuestionTimeoutError is exported as a class', () => {
+    expect(typeof sdk.QuestionTimeoutError).toBe('function');
   });
 
   it('AI is exported as a class', () => {

@@ -32,18 +32,32 @@ function createMockPackage(overrides: Partial<Package> = {}): Package {
 
 function createMockContext(overrides: Partial<WorkerContext> = {}): WorkerContext {
   return {
-    package: createMockPackage(),
+    jobId: 'job-1',
+    packageId: 'pkg-1',
     ai: {},
+    inputPackage: {
+      getFile: vi.fn(),
+      getFileAsString: vi.fn(),
+      listFiles: vi.fn().mockReturnValue([]),
+      getMetadata: vi.fn().mockReturnValue({}),
+    },
+    outputBuilder: {
+      addFile: vi.fn().mockReturnThis(),
+      setMetadata: vi.fn().mockReturnThis(),
+      setType: vi.fn().mockReturnThis(),
+      build: vi.fn().mockReturnValue(createMockOutput()),
+    },
     logger: createMockLogger(),
-    files: {},
-    config: {},
+    askQuestion: vi.fn(),
     ...overrides,
   };
 }
 
 function createMockOutput(overrides: Partial<PackageOutput> = {}): PackageOutput {
   return {
-    data: { result: 'test-output' },
+    type: 'CODE',
+    files: [],
+    metadata: {},
     ...overrides,
   };
 }
@@ -94,7 +108,7 @@ class CustomLifecycleWorker extends SmithyWorker {
     // no-op
   }
 
-  async onProcess(context: WorkerContext): Promise<PackageOutput> {
+  async onProcess(_context: WorkerContext): Promise<PackageOutput> {
     return createMockOutput();
   }
 
@@ -113,8 +127,6 @@ class CustomLifecycleWorker extends SmithyWorker {
 describe('SmithyWorker', () => {
   describe('class structure', () => {
     it('is an abstract class (cannot be instantiated directly)', () => {
-      // SmithyWorker is abstract, so instantiating it directly should cause a TS error.
-      // At runtime, we verify a concrete subclass works fine.
       const worker = new TestWorker();
       expect(worker).toBeInstanceOf(SmithyWorker);
     });
@@ -153,7 +165,6 @@ describe('SmithyWorker', () => {
 
     it('is readonly', () => {
       const worker = new TestWorker();
-      // TypeScript prevents assignment, but verify it's set
       expect(worker.name).toBe('TestWorker');
     });
   });
@@ -199,7 +210,7 @@ describe('SmithyWorker', () => {
       const result = await worker.onProcess(context);
 
       expect(worker.processedContext).toBe(context);
-      expect(result).toEqual({ data: { result: 'test-output' } });
+      expect(result).toEqual({ type: 'CODE', files: [], metadata: {} });
     });
 
     it('can throw when processing fails', async () => {
@@ -226,18 +237,17 @@ describe('SmithyWorker', () => {
       const worker = new TestWorker();
       const output = createMockOutput();
 
-      // Should not throw
       await expect(worker.onComplete(output)).resolves.toBeUndefined();
     });
 
     it('can be overridden by subclasses', async () => {
       const worker = new CustomLifecycleWorker();
-      const output = createMockOutput({ data: { custom: true } });
+      const output = createMockOutput({ metadata: { custom: true } });
 
       await worker.onComplete(output);
 
       expect(worker.completedOutput).toBe(output);
-      expect(worker.completedOutput?.data).toEqual({ custom: true });
+      expect(worker.completedOutput?.metadata).toEqual({ custom: true });
     });
   });
 
@@ -276,7 +286,6 @@ describe('SmithyWorker', () => {
       const worker = new CustomLifecycleWorker();
       const error = new Error('handled gracefully');
 
-      // Should not throw because custom implementation doesn't re-throw
       await expect(worker.onError(error)).resolves.toBeUndefined();
       expect(worker.handledError).toBe(error);
     });
@@ -288,17 +297,14 @@ describe('SmithyWorker', () => {
       const logger = createMockLogger();
       worker.logger = logger;
       const pkg = createMockPackage({ id: 'lifecycle-test' });
-      const context = createMockContext({ package: pkg });
+      const context = createMockContext({ packageId: 'lifecycle-test' });
 
-      // Step 1: onReceive
       await worker.onReceive(pkg);
       expect(worker.receivedPackage?.id).toBe('lifecycle-test');
 
-      // Step 2: onProcess
       const output = await worker.onProcess(context);
-      expect(output.data).toEqual({ result: 'test-output' });
+      expect(output.type).toBe('CODE');
 
-      // Step 3: onComplete
       await worker.onComplete(output);
       expect(logger.info).toHaveBeenCalledWith('Worker completed successfully');
     });
@@ -308,15 +314,12 @@ describe('SmithyWorker', () => {
       const logger = createMockLogger();
       worker.logger = logger;
       const pkg = createMockPackage();
-      const context = createMockContext({ package: pkg });
+      const context = createMockContext();
 
-      // Step 1: onReceive succeeds
       await worker.onReceive(pkg);
 
-      // Step 2: onProcess throws
       await expect(worker.onProcess(context)).rejects.toThrow('processing failed');
 
-      // Step 3: onError logs and re-throws
       const error = new Error('processing failed');
       await expect(worker.onError(error)).rejects.toThrow('processing failed');
       expect(logger.error).toHaveBeenCalledWith('Worker failed', {
