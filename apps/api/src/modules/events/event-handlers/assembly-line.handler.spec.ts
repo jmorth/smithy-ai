@@ -238,6 +238,32 @@ describe('AssemblyLineHandler', () => {
       );
     });
 
+    it('logs error with string representation for non-Error failures', async () => {
+      const loggerSpy = vi.spyOn((handler as any).logger, 'error');
+      mockEmit.mockImplementation(() => {
+        throw 'string error';
+      });
+
+      const event: AssemblyLineCompletedEvent = {
+        eventType: 'assembly-line.completed',
+        timestamp: '2026-01-01T00:00:00.000Z',
+        correlationId: 'corr-str-err',
+        payload: {
+          assemblyLineId: 'al-1',
+          packageId: 'pkg-1',
+          totalSteps: 3,
+          totalDuration: 5000,
+        },
+      };
+
+      await handler.handleAssemblyLineEvent(event as any);
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to handle event'),
+        'string error',
+      );
+    });
+
     it('propagates correlationId to all downstream calls', async () => {
       const event: AssemblyLineCompletedEvent = {
         eventType: 'assembly-line.completed',
