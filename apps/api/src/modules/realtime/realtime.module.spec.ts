@@ -5,6 +5,7 @@ import { WorkerPoolsModule } from '../workflows/worker-pools/worker-pools.module
 import { WorkflowsGateway } from './workflows.gateway';
 import { JobsGateway } from './jobs.gateway';
 import { InteractiveGateway } from './interactive.gateway';
+import { RealtimeService } from './realtime.service';
 
 describe('RealtimeModule', () => {
   describe('module metadata', () => {
@@ -85,12 +86,20 @@ describe('RealtimeModule', () => {
       expect(exports).toContain(InteractiveGateway);
     });
 
-    it('provides three gateways plus Redis factory', () => {
+    it('provides RealtimeService', () => {
       const providers = Reflect.getMetadata(
         'providers',
         RealtimeModule,
       ) as unknown[];
-      expect(providers).toHaveLength(4);
+      expect(providers).toContain(RealtimeService);
+    });
+
+    it('provides three gateways plus RealtimeService plus Redis factory', () => {
+      const providers = Reflect.getMetadata(
+        'providers',
+        RealtimeModule,
+      ) as unknown[];
+      expect(providers).toHaveLength(5);
     });
 
     it('exports exactly three gateways', () => {

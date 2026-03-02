@@ -5,6 +5,7 @@ import { AssemblyLinesModule } from '../workflows/assembly-lines/assembly-lines.
 import { WorkerPoolsModule } from '../workflows/worker-pools/worker-pools.module';
 import { InteractiveGateway, INTERACTIVE_REDIS } from './interactive.gateway';
 import { JobsGateway } from './jobs.gateway';
+import { RealtimeService } from './realtime.service';
 import { WorkflowsGateway } from './workflows.gateway';
 
 @Global()
@@ -14,6 +15,7 @@ import { WorkflowsGateway } from './workflows.gateway';
     WorkflowsGateway,
     JobsGateway,
     InteractiveGateway,
+    RealtimeService,
     {
       provide: INTERACTIVE_REDIS,
       inject: [ConfigService],
