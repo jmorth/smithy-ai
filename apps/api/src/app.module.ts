@@ -10,11 +10,13 @@ import { WorkersModule } from './modules/workers/workers.module';
 import { AssemblyLinesModule } from './modules/workflows/assembly-lines/assembly-lines.module';
 import { WorkerPoolsModule } from './modules/workflows/worker-pools/worker-pools.module';
 import { ContainersModule } from './modules/containers/containers.module';
+import { EventsModule } from './modules/events/events.module';
 
 @Module({
   imports: [
     AppConfigModule,
     DatabaseModule,
+    EventsModule,
     StorageModule,
     HealthModule,
     PackagesModule,
