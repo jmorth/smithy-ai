@@ -1,10 +1,12 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
 import { and, eq, gt, gte, isNull, lte, sql } from 'drizzle-orm';
+import { PackageStatus } from '@smithy/shared';
 import { DRIZZLE } from '../../database/database.constants';
 import type { DrizzleClient } from '../../database/database.provider';
 import { packages, packageFiles } from '../../database/schema';
 import type { CreatePackageDto } from './dto/create-package.dto';
 import type { UpdatePackageDto } from './dto/update-package.dto';
+import { PackageStatusMachine } from './package-status.machine';
 
 export type PackageRecord = typeof packages.$inferSelect;
 export type PackageFileRecord = typeof packageFiles.$inferSelect;
@@ -100,13 +102,24 @@ export class PackagesService {
 
   async update(id: string, dto: UpdatePackageDto): Promise<PackageRecord> {
     const existing = await this.db
-      .select({ id: packages.id })
+      .select({ id: packages.id, status: packages.status })
       .from(packages)
       .where(and(eq(packages.id, id), isNull(packages.deletedAt)))
       .limit(1);
 
     if (!existing.length) {
       throw new NotFoundException(`Package ${id} not found`);
+    }
+
+    if (dto.status !== undefined) {
+      const current = existing[0]!.status as PackageStatus;
+      const target = dto.status as PackageStatus;
+      if (!PackageStatusMachine.isValidTransition(current, target)) {
+        const valid = PackageStatusMachine.getValidTransitions(current);
+        throw new BadRequestException(
+          `Invalid status transition from ${current} to ${target}. Valid transitions: ${valid.join(', ') || 'none'}`,
+        );
+      }
     }
 
     const updates: Record<string, unknown> = { updatedAt: new Date() };

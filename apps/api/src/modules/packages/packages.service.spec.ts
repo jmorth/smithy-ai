@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PackagesService } from './packages.service';
 import type { CreatePackageDto } from './dto/create-package.dto';
 import type { UpdatePackageDto } from './dto/update-package.dto';
@@ -411,7 +411,7 @@ describe('PackagesService', () => {
     it('returns the updated package record', async () => {
       const updated = makePackage({ type: 'image', status: 'IN_TRANSIT' });
       const { service, mockDb } = buildService();
-      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1' }]));
+      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1', status: 'PENDING' }]));
       mockDb.update.mockReturnValue(makeUpdateChain([updated]));
 
       const dto: UpdatePackageDto = { type: 'image', status: 'IN_TRANSIT' as any };
@@ -437,7 +437,7 @@ describe('PackagesService', () => {
     it('only sets fields that are present in the dto', async () => {
       const updated = makePackage({ type: 'image' });
       const { service, mockDb } = buildService();
-      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1' }]));
+      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1', status: 'PENDING' }]));
       const updateChain = makeUpdateChain([updated]);
       mockDb.update.mockReturnValue(updateChain);
 
@@ -452,7 +452,7 @@ describe('PackagesService', () => {
     it('updates metadata when provided', async () => {
       const updated = makePackage({ metadata: { foo: 'bar' } });
       const { service, mockDb } = buildService();
-      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1' }]));
+      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1', status: 'PENDING' }]));
       const updateChain = makeUpdateChain([updated]);
       mockDb.update.mockReturnValue(updateChain);
 
@@ -465,7 +465,7 @@ describe('PackagesService', () => {
     it('includes updatedAt in the SET clause', async () => {
       const updated = makePackage();
       const { service, mockDb } = buildService();
-      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1' }]));
+      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1', status: 'PENDING' }]));
       const updateChain = makeUpdateChain([updated]);
       mockDb.update.mockReturnValue(updateChain);
 
@@ -479,7 +479,7 @@ describe('PackagesService', () => {
     it('does not set deletedAt — that is for softDelete only', async () => {
       const updated = makePackage();
       const { service, mockDb } = buildService();
-      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1' }]));
+      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1', status: 'PENDING' }]));
       const updateChain = makeUpdateChain([updated]);
       mockDb.update.mockReturnValue(updateChain);
 
@@ -487,6 +487,80 @@ describe('PackagesService', () => {
 
       const setCalls = updateChain.set.mock.calls[0][0] as Record<string, unknown>;
       expect(setCalls).not.toHaveProperty('deletedAt');
+    });
+
+    // ── status machine integration ─────────────────────────────────────────
+
+    it('allows a valid status transition (PENDING → IN_TRANSIT)', async () => {
+      const updated = makePackage({ status: 'IN_TRANSIT' });
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1', status: 'PENDING' }]));
+      mockDb.update.mockReturnValue(makeUpdateChain([updated]));
+
+      const result = await service.update('pkg-uuid-1', { status: 'IN_TRANSIT' as any });
+
+      expect(result.status).toBe('IN_TRANSIT');
+    });
+
+    it('allows same-status transition (idempotent — PENDING → PENDING)', async () => {
+      const updated = makePackage({ status: 'PENDING' });
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1', status: 'PENDING' }]));
+      mockDb.update.mockReturnValue(makeUpdateChain([updated]));
+
+      await expect(service.update('pkg-uuid-1', { status: 'PENDING' as any })).resolves.toEqual(updated);
+    });
+
+    it('throws BadRequestException for an invalid status transition', async () => {
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1', status: 'COMPLETED' }]));
+
+      await expect(service.update('pkg-uuid-1', { status: 'PENDING' as any })).rejects.toThrow(BadRequestException);
+    });
+
+    it('includes current and target status in the error message', async () => {
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1', status: 'COMPLETED' }]));
+
+      await expect(service.update('pkg-uuid-1', { status: 'PENDING' as any })).rejects.toThrow(
+        'Invalid status transition from COMPLETED to PENDING',
+      );
+    });
+
+    it('includes valid transitions in the error message', async () => {
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1', status: 'COMPLETED' }]));
+
+      await expect(service.update('pkg-uuid-1', { status: 'PENDING' as any })).rejects.toThrow(
+        'Valid transitions: EXPIRED',
+      );
+    });
+
+    it('error message says "none" when the source is a terminal state', async () => {
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1', status: 'EXPIRED' }]));
+
+      await expect(service.update('pkg-uuid-1', { status: 'PENDING' as any })).rejects.toThrow(
+        'Valid transitions: none',
+      );
+    });
+
+    it('does not call db.update when status transition is invalid', async () => {
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1', status: 'FAILED' }]));
+
+      await expect(service.update('pkg-uuid-1', { status: 'PENDING' as any })).rejects.toThrow(BadRequestException);
+      expect(mockDb.update).not.toHaveBeenCalled();
+    });
+
+    it('skips transition validation when status is not in the dto', async () => {
+      const updated = makePackage({ type: 'video' });
+      const { service, mockDb } = buildService();
+      mockDb.select.mockReturnValueOnce(makeSelectChain([{ id: 'pkg-uuid-1', status: 'EXPIRED' }]));
+      mockDb.update.mockReturnValue(makeUpdateChain([updated]));
+
+      // No status in dto — should not throw even though EXPIRED is terminal
+      await expect(service.update('pkg-uuid-1', { type: 'video' })).resolves.toEqual(updated);
     });
   });
 
