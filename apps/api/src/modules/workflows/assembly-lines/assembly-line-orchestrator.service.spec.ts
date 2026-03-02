@@ -255,6 +255,26 @@ describe('AssemblyLineOrchestratorService', () => {
       );
     });
 
+    it('treats null currentStep as 0 (out-of-order when completedStep > 0)', async () => {
+      const pkg = makePkg({ currentStep: null });
+
+      db._selectChain.limit.mockResolvedValueOnce([pkg]);
+
+      const event: JobCompletedEvent = {
+        packageId: 'pkg-1',
+        assemblyLineSlug: 'my-line',
+        completedStep: 2,
+        jobExecutionId: 'job-1',
+      };
+
+      await service.onJobCompleted(event);
+
+      expect(db.update).not.toHaveBeenCalled();
+      expect(Logger.prototype.error).toHaveBeenCalledWith(
+        expect.stringContaining('out-of-order'),
+      );
+    });
+
     it('logs error when package has no assemblyLineId', async () => {
       const pkg = makePkg({ assemblyLineId: null, currentStep: 1 });
 
@@ -449,6 +469,70 @@ describe('AssemblyLineOrchestratorService', () => {
       await new Promise((r) => setTimeout(r, 0));
 
       expect(Logger.prototype.warn).toHaveBeenCalled();
+    });
+
+    it('logs error when onJobCompleted throws an unhandled error', async () => {
+      vi.spyOn(service, 'onJobCompleted').mockRejectedValueOnce(new Error('unexpected failure'));
+
+      service.onModuleInit();
+
+      const event: JobCompletedEvent = {
+        packageId: 'pkg-1',
+        assemblyLineSlug: 'my-line',
+        completedStep: 1,
+        jobExecutionId: 'job-1',
+      };
+
+      eventBus.emit(JOB_EVENTS.COMPLETED, event);
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(Logger.prototype.error).toHaveBeenCalledWith(
+        'Unhandled error in onJobCompleted',
+        expect.any(Error),
+      );
+    });
+
+    it('logs error when onJobFailed throws an unhandled error', async () => {
+      vi.spyOn(service, 'onJobFailed').mockRejectedValueOnce(new Error('db exploded'));
+
+      service.onModuleInit();
+
+      const event: JobFailedEvent = {
+        packageId: 'pkg-1',
+        assemblyLineSlug: 'my-line',
+        failedStep: 1,
+        jobExecutionId: 'job-1',
+        errorMessage: 'err',
+      };
+
+      eventBus.emit(JOB_EVENTS.FAILED, event);
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(Logger.prototype.error).toHaveBeenCalledWith(
+        'Unhandled error in onJobFailed',
+        expect.any(Error),
+      );
+    });
+
+    it('logs error when onJobStuck throws an unhandled error', async () => {
+      vi.spyOn(service, 'onJobStuck').mockRejectedValueOnce(new Error('network error'));
+
+      service.onModuleInit();
+
+      const event: JobStuckEvent = {
+        packageId: 'pkg-1',
+        assemblyLineSlug: 'my-line',
+        stuckStep: 1,
+        jobExecutionId: 'job-1',
+      };
+
+      eventBus.emit(JOB_EVENTS.STUCK, event);
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(Logger.prototype.error).toHaveBeenCalledWith(
+        'Unhandled error in onJobStuck',
+        expect.any(Error),
+      );
     });
   });
 });
