@@ -8,6 +8,9 @@ import {
   createRabbitMQConfig,
 } from './events.module';
 import { EventBusService } from './event-bus.service';
+import { PackageHandler } from './event-handlers/package.handler';
+import { JobHandler } from './event-handlers/job.handler';
+import { AssemblyLineHandler } from './event-handlers/assembly-line.handler';
 
 const mockConfigService = {
   get: vi.fn((key: string) => {
@@ -40,6 +43,26 @@ describe('EventsModule', () => {
     it('provides EventBusService', () => {
       const providers = Reflect.getMetadata('providers', EventsModule) as unknown[];
       expect(providers).toContain(EventBusService);
+    });
+
+    it('provides PackageHandler', () => {
+      const providers = Reflect.getMetadata('providers', EventsModule) as unknown[];
+      expect(providers).toContain(PackageHandler);
+    });
+
+    it('provides JobHandler', () => {
+      const providers = Reflect.getMetadata('providers', EventsModule) as unknown[];
+      expect(providers).toContain(JobHandler);
+    });
+
+    it('provides AssemblyLineHandler', () => {
+      const providers = Reflect.getMetadata('providers', EventsModule) as unknown[];
+      expect(providers).toContain(AssemblyLineHandler);
+    });
+
+    it('imports EventEmitterModule', () => {
+      const imports = Reflect.getMetadata('imports', EventsModule) as unknown[];
+      expect(imports.length).toBeGreaterThanOrEqual(2);
     });
 
     it('exports EventBusService for injection in other modules', () => {
