@@ -9,6 +9,7 @@ import { PackagesModule } from './modules/packages/packages.module';
 import { WorkersModule } from './modules/workers/workers.module';
 import { AssemblyLinesModule } from './modules/workflows/assembly-lines/assembly-lines.module';
 import { WorkerPoolsModule } from './modules/workflows/worker-pools/worker-pools.module';
+import { ContainersModule } from './modules/containers/containers.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { WorkerPoolsModule } from './modules/workflows/worker-pools/worker-pools
     WorkersModule,
     AssemblyLinesModule,
     WorkerPoolsModule,
+    ContainersModule,
     LoggerModule.forRoot({
       pinoHttp: {
         transport:
