@@ -57,6 +57,7 @@ describe('UpdatePackageDto', () => {
     const typeError = errors.find((e) => e.property === 'type');
     expect(typeError).toBeDefined();
     expect(typeError!.constraints).toBeDefined();
+    expect(Object.values(typeError!.constraints!).join(' ')).toContain('empty');
   });
 
   it('passes when only status is provided', async () => {
