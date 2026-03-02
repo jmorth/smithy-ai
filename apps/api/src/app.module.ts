@@ -6,6 +6,7 @@ import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { PackagesModule } from './modules/packages/packages.module';
+import { WorkersModule } from './modules/workers/workers.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { PackagesModule } from './modules/packages/packages.module';
     StorageModule,
     HealthModule,
     PackagesModule,
+    WorkersModule,
     LoggerModule.forRoot({
       pinoHttp: {
         transport:
