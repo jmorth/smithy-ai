@@ -1,0 +1,22 @@
+{
+  "name": "@smithy/worker-summarizer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@ai-sdk/provider": "^3.0.8",
+    "@smithy/shared": "workspace:*",
+    "@smithy/worker-sdk": "workspace:*",
+    "ai": "^6.0.105"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^3.2.4",
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0"
+  }
+}

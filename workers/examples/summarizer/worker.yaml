@@ -1,0 +1,9 @@
+name: "summarizer"
+slug: "summarizer"
+inputTypes:
+  - "USER_INPUT"
+outputType: "SPECIFICATION"
+provider:
+  name: "anthropic"
+  model: "claude-sonnet-4-20250514"
+  apiKeyEnv: "ANTHROPIC_API_KEY"

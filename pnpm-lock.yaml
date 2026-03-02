@@ -254,6 +254,31 @@ importers:
         specifier: ^3.0.0
         version: 3.2.4(@types/node@22.19.13)(jsdom@28.1.0(@noble/hashes@1.8.0))(terser@5.46.0)(yaml@2.8.2)
 
+  workers/examples/summarizer:
+    dependencies:
+      '@ai-sdk/provider':
+        specifier: ^3.0.8
+        version: 3.0.8
+      '@smithy/shared':
+        specifier: workspace:*
+        version: link:../../../packages/shared
+      '@smithy/worker-sdk':
+        specifier: workspace:*
+        version: link:../../../packages/worker-sdk
+      ai:
+        specifier: ^6.0.105
+        version: 6.0.105(zod@4.3.6)
+    devDependencies:
+      '@vitest/coverage-v8':
+        specifier: ^3.2.4
+        version: 3.2.4(vitest@3.2.4(@types/node@22.19.13)(jsdom@28.1.0(@noble/hashes@1.8.0))(terser@5.46.0)(yaml@2.8.2))
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.4(@types/node@22.19.13)(jsdom@28.1.0(@noble/hashes@1.8.0))(terser@5.46.0)(yaml@2.8.2)
+
 packages:
 
   '@acemir/cssom@0.9.31':
