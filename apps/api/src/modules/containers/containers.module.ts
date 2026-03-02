@@ -4,12 +4,14 @@ import Redis from 'ioredis';
 import { ContainerBuilderService } from './container-builder.service';
 import { ContainerManagerService } from './container-manager.service';
 import { ConcurrencyLimiterService, CONTAINER_REDIS_CLIENT } from './concurrency-limiter.service';
+import { ContainerLogStreamerService } from './container-log-streamer';
 
 @Module({
   providers: [
     ContainerBuilderService,
     ContainerManagerService,
     ConcurrencyLimiterService,
+    ContainerLogStreamerService,
     {
       provide: CONTAINER_REDIS_CLIENT,
       inject: [ConfigService],
@@ -18,6 +20,6 @@ import { ConcurrencyLimiterService, CONTAINER_REDIS_CLIENT } from './concurrency
       },
     },
   ],
-  exports: [ContainerBuilderService, ContainerManagerService, ConcurrencyLimiterService],
+  exports: [ContainerBuilderService, ContainerManagerService, ConcurrencyLimiterService, ContainerLogStreamerService],
 })
 export class ContainersModule {}
