@@ -144,6 +144,30 @@ export class WorkersService {
     });
   }
 
+  async findVersion(slug: string, version: number): Promise<WorkerVersionRecord> {
+    const [worker] = await this.db
+      .select({ id: workers.id })
+      .from(workers)
+      .where(eq(workers.slug, slug))
+      .limit(1);
+
+    if (!worker) {
+      throw new NotFoundException(`Worker "${slug}" not found`);
+    }
+
+    const [versionRow] = await this.db
+      .select()
+      .from(workerVersions)
+      .where(and(eq(workerVersions.workerId, worker.id), eq(workerVersions.version, version)))
+      .limit(1);
+
+    if (!versionRow) {
+      throw new NotFoundException(`Version ${version} not found for worker "${slug}"`);
+    }
+
+    return versionRow;
+  }
+
   async deprecateVersion(slug: string, version: number): Promise<WorkerVersionRecord> {
     return this.db.transaction(async (tx) => {
       const [worker] = await tx
