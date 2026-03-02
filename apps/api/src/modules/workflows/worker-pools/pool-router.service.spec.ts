@@ -378,6 +378,85 @@ describe('PoolRouterService', () => {
       expect(result.workerSlug).toBe('active-worker');
     });
 
+    it('distributes evenly: 6 submissions to a 3-member pool give each member exactly 2 jobs', async () => {
+      const memberA = makeMember({ workerSlug: 'worker-a', workerVersionId: 'wv-a' });
+      const memberB = makeMember({ workerSlug: 'worker-b', workerVersionId: 'wv-b' });
+      const memberC = makeMember({ workerSlug: 'worker-c', workerVersionId: 'wv-c' });
+      const { service, mockDb, mockRedis } = buildService();
+
+      for (let i = 0; i < 6; i++) {
+        mockDb.select
+          .mockReturnValueOnce(makeSelectChain([makePool()]))
+          .mockReturnValueOnce(makeSelectChainWhereTerminal([memberA, memberB, memberC]));
+      }
+      // counters 1–6: 1%3=1→B, 2%3=2→C, 3%3=0→A, 4%3=1→B, 5%3=2→C, 6%3=0→A
+      // Each dispatched route calls incr twice: once for rr, once for active.
+      mockRedis.incr
+        .mockResolvedValueOnce(1).mockResolvedValueOnce(1)   // rr=1, active
+        .mockResolvedValueOnce(2).mockResolvedValueOnce(1)   // rr=2, active
+        .mockResolvedValueOnce(3).mockResolvedValueOnce(1)   // rr=3, active
+        .mockResolvedValueOnce(4).mockResolvedValueOnce(1)   // rr=4, active
+        .mockResolvedValueOnce(5).mockResolvedValueOnce(1)   // rr=5, active
+        .mockResolvedValueOnce(6).mockResolvedValueOnce(1);  // rr=6, active
+      mockRedis.get.mockResolvedValue('0');
+
+      const counts = new Map<string, number>();
+      for (let i = 0; i < 6; i++) {
+        const result = await service.route('my-pool', `package-${i}`);
+        counts.set(result.workerSlug, (counts.get(result.workerSlug) ?? 0) + 1);
+      }
+
+      expect(counts.get('worker-a')).toBe(2);
+      expect(counts.get('worker-b')).toBe(2);
+      expect(counts.get('worker-c')).toBe(2);
+    });
+
+    it('counter wraps around after cycling through all members', async () => {
+      const memberA = makeMember({ workerSlug: 'worker-a', workerVersionId: 'wv-a' });
+      const memberB = makeMember({ workerSlug: 'worker-b', workerVersionId: 'wv-b' });
+      const memberC = makeMember({ workerSlug: 'worker-c', workerVersionId: 'wv-c' });
+      const { service: s1, mockDb: db1, mockRedis: r1 } = buildService();
+      db1.select
+        .mockReturnValueOnce(makeSelectChain([makePool()]))
+        .mockReturnValueOnce(makeSelectChainWhereTerminal([memberA, memberB, memberC]));
+      r1.incr.mockResolvedValue(3); // 3 % 3 = 0 → worker-a
+      r1.get.mockResolvedValue('0');
+      const afterOneCycle = await s1.route('my-pool', 'pkg-1');
+
+      const { service: s2, mockDb: db2, mockRedis: r2 } = buildService();
+      db2.select
+        .mockReturnValueOnce(makeSelectChain([makePool()]))
+        .mockReturnValueOnce(makeSelectChainWhereTerminal([memberA, memberB, memberC]));
+      r2.incr.mockResolvedValue(6); // 6 % 3 = 0 → worker-a (wrapped)
+      r2.get.mockResolvedValue('0');
+      const afterTwoCycles = await s2.route('my-pool', 'pkg-2');
+
+      expect(afterOneCycle.workerSlug).toBe('worker-a');
+      expect(afterTwoCycles.workerSlug).toBe('worker-a');
+    });
+
+    it('single-member pool always routes to the same worker regardless of counter', async () => {
+      const onlyMember = makeMember({ workerSlug: 'sole-worker', workerVersionId: 'wv-1' });
+      const { service, mockDb, mockRedis } = buildService();
+
+      for (let i = 0; i < 3; i++) {
+        mockDb.select
+          .mockReturnValueOnce(makeSelectChain([makePool()]))
+          .mockReturnValueOnce(makeSelectChainWhereTerminal([onlyMember]));
+      }
+      // Each dispatched route calls incr twice: once for rr, once for active.
+      mockRedis.incr
+        .mockResolvedValueOnce(1).mockResolvedValueOnce(1)     // rr=1, active
+        .mockResolvedValueOnce(2).mockResolvedValueOnce(1)     // rr=2, active
+        .mockResolvedValueOnce(100).mockResolvedValueOnce(1);  // rr=100, active
+      mockRedis.get.mockResolvedValue('0');
+
+      for (let i = 0; i < 3; i++) {
+        const result = await service.route('my-pool', `pkg-${i}`);
+        expect(result.workerSlug).toBe('sole-worker');
+      }
+    });
+
     // ── Weighted round-robin ──────────────────────────────────────────────────
 
     it('expands member list by priority for weighted round-robin', async () => {
