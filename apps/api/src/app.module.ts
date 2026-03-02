@@ -12,6 +12,7 @@ import { WorkerPoolsModule } from './modules/workflows/worker-pools/worker-pools
 import { ContainersModule } from './modules/containers/containers.module';
 import { EventsModule } from './modules/events/events.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
     WorkerPoolsModule,
     ContainersModule,
     RealtimeModule,
+    NotificationsModule,
     LoggerModule.forRoot({
       pinoHttp: {
         transport:
