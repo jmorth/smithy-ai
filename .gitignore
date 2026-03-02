@@ -16,12 +16,14 @@ out/
 
 # Environment files
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
 # Editor directories and files
-.vscode/
 .idea/
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
 *.swp
 *.swo
 
@@ -37,3 +39,13 @@ coverage/
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# Packed packages
+*.tgz
+
+# Temporary files
+tmp/
+temp/
+
+# Docker volumes and temporary files
+docker-compose.override.yml
