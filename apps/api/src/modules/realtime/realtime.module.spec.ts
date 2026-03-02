@@ -85,12 +85,12 @@ describe('RealtimeModule', () => {
       expect(exports).toContain(InteractiveGateway);
     });
 
-    it('provides exactly three gateways', () => {
+    it('provides three gateways plus Redis factory', () => {
       const providers = Reflect.getMetadata(
         'providers',
         RealtimeModule,
       ) as unknown[];
-      expect(providers).toHaveLength(3);
+      expect(providers).toHaveLength(4);
     });
 
     it('exports exactly three gateways', () => {
