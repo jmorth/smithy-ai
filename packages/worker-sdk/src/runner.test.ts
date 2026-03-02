@@ -803,4 +803,173 @@ describe('process-level error handlers', () => {
     );
     expect(uncaughtRemovals.length).toBeGreaterThan(0);
   });
+
+  it('invokes onUncaughtException handler which calls exit with RUNTIME_ERROR', async () => {
+    const processSpy = vi.spyOn(process, 'on');
+    // Use a slow worker so we can intercept the handler before run completes
+    const slowWorkerPath = createWorkerModule(tmpDir, {
+      onProcess: `
+        await new Promise(resolve => setTimeout(resolve, 50));
+        return {
+          type: 'test-output',
+          files: [{ filename: 'out.txt', content: 'hello', mimeType: 'text/plain' }],
+          metadata: {},
+        };
+      `,
+    });
+
+    // Start run but don't await — we want to trigger the uncaught exception handler
+    const runPromise = run({
+      configPath,
+      workerModulePath: slowWorkerPath,
+      inputDir,
+      exit: exitMock,
+    });
+
+    // Wait for the handler to be registered
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    // Extract the registered uncaughtException handler
+    const uncaughtCalls = processSpy.mock.calls.filter(
+      ([event]) => event === 'uncaughtException',
+    );
+    if (uncaughtCalls.length > 0) {
+      const handler = uncaughtCalls[0]![1] as (error: Error) => Promise<void>;
+      await handler(new Error('simulated uncaught'));
+    }
+
+    await runPromise;
+
+    expect(exitMock).toHaveBeenCalledWith(EXIT_CODES.RUNTIME_ERROR);
+  });
+
+  it('invokes onUnhandledRejection handler which calls exit with RUNTIME_ERROR', async () => {
+    const processSpy = vi.spyOn(process, 'on');
+    const slowWorkerPath = createWorkerModule(tmpDir, {
+      onProcess: `
+        await new Promise(resolve => setTimeout(resolve, 50));
+        return {
+          type: 'test-output',
+          files: [{ filename: 'out.txt', content: 'hello', mimeType: 'text/plain' }],
+          metadata: {},
+        };
+      `,
+    });
+
+    const runPromise = run({
+      configPath,
+      workerModulePath: slowWorkerPath,
+      inputDir,
+      exit: exitMock,
+    });
+
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    // Extract the registered unhandledRejection handler
+    const rejectionCalls = processSpy.mock.calls.filter(
+      ([event]) => event === 'unhandledRejection',
+    );
+    if (rejectionCalls.length > 0) {
+      const handler = rejectionCalls[0]![1] as (reason: unknown) => Promise<void>;
+      // Test with non-Error reason to cover the String coercion path
+      await handler('string rejection reason');
+    }
+
+    await runPromise;
+
+    expect(exitMock).toHaveBeenCalledWith(EXIT_CODES.RUNTIME_ERROR);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: reportError edge cases
+// ---------------------------------------------------------------------------
+
+describe('reportError edge cases', () => {
+  let tmpDir: string;
+  let configPath: string;
+  let inputDir: string;
+  let fetchSpy: Mock;
+  const exitMock = vi.fn();
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    clearEnvVars();
+    exitMock.mockClear();
+
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'runner-report-test-'));
+    configPath = writeYaml(tmpDir, validYaml());
+    inputDir = path.join(tmpDir, 'input');
+    fs.mkdirSync(inputDir);
+
+    setRequiredEnvVars();
+  });
+
+  afterEach(() => {
+    clearEnvVars();
+    vi.unstubAllGlobals();
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('handles worker.onError that does not re-throw', async () => {
+    // Worker with a custom onError that doesn't re-throw
+    const workerPath = createWorkerModule(tmpDir, {
+      onProcess: 'throw new Error("process failed");',
+      onError: '/* swallow the error, do not re-throw */',
+    });
+
+    fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ status: 'ok', packageId: 'p1' }),
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await run({
+      configPath,
+      workerModulePath: workerPath,
+      inputDir,
+      exit: exitMock,
+    });
+
+    expect(exitMock).toHaveBeenCalledWith(EXIT_CODES.RUNTIME_ERROR);
+  });
+
+  it('handles apiClient.updateStatus failure during error reporting', async () => {
+    const workerPath = createWorkerModule(tmpDir, {
+      onProcess: 'throw new Error("process failed");',
+      onError: '/* swallow */',
+    });
+
+    let callCount = 0;
+    fetchSpy = vi.fn().mockImplementation(() => {
+      callCount++;
+      // First call is updateStatus(RUNNING) — succeeds
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify({ status: 'ok' }),
+        });
+      }
+      // Second call is updateStatus(ERROR) — fails
+      return Promise.resolve({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        text: async () => 'server down',
+      });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await run({
+      configPath,
+      workerModulePath: workerPath,
+      inputDir,
+      exit: exitMock,
+    });
+
+    // Should still exit with RUNTIME_ERROR despite the status update failure
+    expect(exitMock).toHaveBeenCalledWith(EXIT_CODES.RUNTIME_ERROR);
+  });
 });
