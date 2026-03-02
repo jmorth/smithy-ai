@@ -33,6 +33,8 @@ export const envSchema = z.object({
 
   // Email (optional)
   RESEND_API_KEY: z.string().min(1).optional(),
+  EMAIL_FROM: z.string().min(1).default('notifications@smithy.dev'),
+  DASHBOARD_URL: z.string().url().default('http://localhost:5173'),
 
   // Container concurrency
   CONTAINER_CONCURRENCY_LIMIT: z
