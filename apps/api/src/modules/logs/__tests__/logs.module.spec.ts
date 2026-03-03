@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { Test } from '@nestjs/testing';
-import { LogsModule } from './logs.module';
-import { LogsController } from './logs.controller';
-import { LogsService } from './logs.service';
+import { LogsModule } from '../logs.module';
+import { LogsController } from '../logs.controller';
+import { LogsService } from '../logs.service';
 
 describe('LogsModule', () => {
   async function createTestModule() {
