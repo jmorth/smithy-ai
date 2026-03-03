@@ -14,7 +14,7 @@ const PackageDetailPage = lazy(() => import('./pages/packages/[id]'));
 const WorkerListPage = lazy(() => import('./pages/worker-list'));
 const WorkerCreatePage = lazy(() => import('./pages/worker-create'));
 const WorkerDetailPage = lazy(() => import('./pages/worker-detail'));
-const LogViewerPage = lazy(() => import('./pages/log-viewer'));
+const LogViewerPage = lazy(() => import('./pages/logs'));
 const FactoryPage = lazy(() => import('./pages/factory'));
 const NotFoundPage = lazy(() => import('./pages/not-found'));
 
