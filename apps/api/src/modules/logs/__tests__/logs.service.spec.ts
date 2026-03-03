@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { firstValueFrom, take, toArray, lastValueFrom } from 'rxjs';
-import { LogsService, LogEntry } from './logs.service';
+import { LogsService, LogEntry } from '../logs.service';
 
 function createMockDb() {
   return {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
-import { LogQueryDto } from './log-query.dto';
+import { LogQueryDto } from '../dto/log-query.dto';
 
 function toDto(plain: Record<string, unknown>): LogQueryDto {
   return plainToInstance(LogQueryDto, plain);

@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { Subject } from 'rxjs';
 import { take, toArray, firstValueFrom } from 'rxjs';
-import { LogsController } from './logs.controller';
-import { LogsService, LogEntry } from './logs.service';
+import { LogsController } from '../logs.controller';
+import { LogsService, LogEntry } from '../logs.service';
 
 function makeEntry(overrides: Partial<LogEntry> = {}): LogEntry {
   return {
@@ -429,6 +429,55 @@ describe('LogsController', () => {
       const parsed = JSON.parse(event.data as string);
       expect(parsed.metadata.key).toBe('value');
       expect(parsed.metadata.nested.deep).toBe(true);
+    });
+
+    it('forwards errors from the underlying log stream to the subscriber', async () => {
+      const { controller, mockService } = buildController();
+      const subject = new Subject<LogEntry>();
+
+      mockService.getJobStatus.mockResolvedValue('RUNNING');
+      mockService.streamLogs.mockReturnValue(subject.asObservable());
+
+      const observable = controller.streamLogs('job-uuid');
+      const errorPromise = firstValueFrom(observable).catch((err) => err);
+
+      await flushMicrotasks();
+      const streamError = new Error('upstream failure');
+      subject.error(streamError);
+
+      const err = await errorPromise;
+      expect(err).toBe(streamError);
+    });
+
+    it('catches unexpected errors during validation and forwards to subscriber', async () => {
+      const { controller, mockService } = buildController();
+
+      mockService.getJobStatus.mockRejectedValue(new Error('db connection lost'));
+
+      const observable = controller.streamLogs('job-uuid');
+
+      await expect(firstValueFrom(observable)).rejects.toThrow(
+        'db connection lost',
+      );
+    });
+
+    it('cleans up inner subscription when outer subscriber is unsubscribed', async () => {
+      const { controller, mockService } = buildController();
+      const subject = new Subject<LogEntry>();
+
+      mockService.getJobStatus.mockResolvedValue('RUNNING');
+      mockService.streamLogs.mockReturnValue(subject.asObservable());
+
+      const observable = controller.streamLogs('job-uuid');
+      const sub = observable.subscribe();
+
+      await flushMicrotasks();
+
+      sub.unsubscribe();
+
+      // After unsubscribe, the subject should have no observers
+      // (the inner subscription was cleaned up via subscriber.add teardown)
+      expect(subject.observed).toBe(false);
     });
   });
 });
