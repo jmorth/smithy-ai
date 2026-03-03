@@ -468,6 +468,50 @@ describe('LogsService', () => {
     });
   });
 
+  describe('getJobStatus', () => {
+    it('returns the job status when the job exists', async () => {
+      const { service, db } = buildService();
+      db.execute.mockResolvedValueOnce({ rows: [{ status: 'RUNNING' }] });
+
+      const status = await service.getJobStatus('job-1');
+      expect(status).toBe('RUNNING');
+    });
+
+    it('returns null when the job does not exist', async () => {
+      const { service, db } = buildService();
+      db.execute.mockResolvedValueOnce({ rows: [] });
+
+      const status = await service.getJobStatus('nonexistent');
+      expect(status).toBeNull();
+    });
+
+    it('returns null when rows are undefined', async () => {
+      const { service, db } = buildService();
+      db.execute.mockResolvedValueOnce({ rows: undefined });
+
+      const status = await service.getJobStatus('job-1');
+      expect(status).toBeNull();
+    });
+  });
+
+  describe('isTerminalStatus', () => {
+    it.each(['COMPLETED', 'FAILED', 'CANCELLED', 'ERROR'])(
+      'returns true for terminal status %s',
+      (status) => {
+        const { service } = buildService();
+        expect(service.isTerminalStatus(status)).toBe(true);
+      },
+    );
+
+    it.each(['QUEUED', 'RUNNING', 'STUCK'])(
+      'returns false for non-terminal status %s',
+      (status) => {
+        const { service } = buildService();
+        expect(service.isTerminalStatus(status)).toBe(false);
+      },
+    );
+  });
+
   describe('level hierarchy filtering', () => {
     it('debug level includes all levels', async () => {
       const { service, db } = buildService();

@@ -162,6 +162,18 @@ export class LogsService {
     return this.streams.has(jobId);
   }
 
+  async getJobStatus(jobId: string): Promise<string | null> {
+    const result = await this.db.execute(
+      sql`SELECT status FROM ${jobExecutions} WHERE id = ${jobId}`,
+    );
+
+    return (result as any).rows?.[0]?.status ?? null;
+  }
+
+  isTerminalStatus(status: string): boolean {
+    return TERMINAL_STATUSES.has(status);
+  }
+
   private async getLogCount(jobId: string): Promise<number> {
     const result = await this.db.execute(
       sql`SELECT jsonb_array_length(COALESCE(logs, '[]'::jsonb)) AS count

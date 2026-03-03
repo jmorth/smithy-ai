@@ -13,6 +13,7 @@ import { ContainersModule } from './modules/containers/containers.module';
 import { EventsModule } from './modules/events/events.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { LogsModule } from './modules/logs/logs.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     ContainersModule,
     RealtimeModule,
     NotificationsModule,
+    LogsModule,
     LoggerModule.forRoot({
       pinoHttp: {
         transport:
