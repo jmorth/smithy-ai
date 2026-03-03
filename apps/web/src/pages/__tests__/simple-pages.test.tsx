@@ -4,7 +4,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi } from 'vitest';
 import WorkerListPage from '../worker-list';
 import LogViewerPage from '../log-viewer';
-import FactoryPage from '../factory';
 
 vi.mock('@/api/client', () => ({
   workers: {
@@ -55,10 +54,4 @@ describe('LogViewerPage', () => {
   });
 });
 
-describe('FactoryPage', () => {
-  it('renders heading and coming soon text', () => {
-    renderInRouter(<FactoryPage />);
-    expect(screen.getByRole('heading', { level: 2, name: 'Factory' })).toBeInTheDocument();
-    expect(screen.getByText('Coming soon: Factory View')).toBeInTheDocument();
-  });
-});
+// FactoryPage has a dedicated test suite in factory/__tests__/factory-page.test.tsx.

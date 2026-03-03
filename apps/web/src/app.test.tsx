@@ -68,6 +68,15 @@ vi.mock('./api/client', () => ({
   },
 }));
 
+vi.mock('phaser', () => ({
+  default: {
+    Game: vi.fn().mockImplementation(() => ({ destroy: vi.fn() })),
+    AUTO: 0,
+    Scale: { RESIZE: 3, CENTER_BOTH: 1 },
+  },
+  __esModule: true,
+}));
+
 vi.mock('./api/socket', () => ({
   socketManager: {
     onEvent: vi.fn(() => vi.fn()),
@@ -187,7 +196,7 @@ describe('App', () => {
 
   it('renders Factory page on /factory', async () => {
     renderApp(['/factory']);
-    expect(await screen.findByRole('heading', { level: 2, name: 'Factory' })).toBeInTheDocument();
+    expect(await screen.findByTestId('phaser-container')).toBeInTheDocument();
   });
 
   it('renders 404 Not Found page for unknown routes', async () => {
