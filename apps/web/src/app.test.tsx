@@ -182,7 +182,7 @@ describe('App', () => {
 
   it('renders Logs page on /logs', async () => {
     renderApp(['/logs']);
-    expect(await screen.findByRole('heading', { level: 2, name: 'Logs' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Log Viewer' })).toBeInTheDocument();
   });
 
   it('renders Factory page on /factory', async () => {
