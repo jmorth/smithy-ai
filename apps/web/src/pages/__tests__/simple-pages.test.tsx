@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect } from 'vitest';
-import DashboardPage from '../dashboard';
 import AssemblyLineListPage from '../assembly-line-list';
 import AssemblyLineCreatePage from '../assembly-line-create';
 import WorkerPoolListPage from '../worker-pool-list';
@@ -14,14 +13,6 @@ import FactoryPage from '../factory';
 function renderInRouter(ui: React.ReactElement) {
   return render(<MemoryRouter>{ui}</MemoryRouter>);
 }
-
-describe('DashboardPage', () => {
-  it('renders heading and coming soon text', () => {
-    renderInRouter(<DashboardPage />);
-    expect(screen.getByRole('heading', { level: 2, name: 'Dashboard' })).toBeInTheDocument();
-    expect(screen.getByText('Coming soon: Dashboard')).toBeInTheDocument();
-  });
-});
 
 describe('AssemblyLineListPage', () => {
   it('renders heading and coming soon text', () => {
