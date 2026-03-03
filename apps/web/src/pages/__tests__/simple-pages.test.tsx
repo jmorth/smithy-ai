@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect } from 'vitest';
-import AssemblyLineCreatePage from '../assembly-line-create';
 import WorkerPoolListPage from '../worker-pool-list';
 import WorkerPoolCreatePage from '../worker-pool-create';
 import PackageListPage from '../package-list';
@@ -13,15 +12,7 @@ function renderInRouter(ui: React.ReactElement) {
   return render(<MemoryRouter>{ui}</MemoryRouter>);
 }
 
-// AssemblyLineListPage is now a full page with its own dedicated test suite.
-
-describe('AssemblyLineCreatePage', () => {
-  it('renders heading and coming soon text', () => {
-    renderInRouter(<AssemblyLineCreatePage />);
-    expect(screen.getByRole('heading', { level: 2, name: 'Create Assembly Line' })).toBeInTheDocument();
-    expect(screen.getByText('Coming soon: Assembly Line Creation')).toBeInTheDocument();
-  });
-});
+// AssemblyLineListPage and AssemblyLineCreatePage have dedicated test suites.
 
 describe('WorkerPoolListPage', () => {
   it('renders heading and coming soon text', () => {
