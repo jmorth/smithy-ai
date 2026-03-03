@@ -1,6 +1,7 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import Phaser from 'phaser';
 import PhaserGame, { type PhaserGameHandle } from '@/phaser/game';
+import { createGameConfig } from '@/phaser/config';
 
 export default function FactoryPage() {
   const gameRef = useRef<PhaserGameHandle>(null);
@@ -9,9 +10,15 @@ export default function FactoryPage() {
     void game;
   }, []);
 
+  const config = useMemo(() => {
+    const placeholder = document.createElement('div');
+    const { parent: _, ...configWithoutParent } = createGameConfig(placeholder);
+    return configWithoutParent;
+  }, []);
+
   return (
     <div className="relative w-screen h-screen">
-      <PhaserGame ref={gameRef} onGameReady={handleGameReady} />
+      <PhaserGame ref={gameRef} config={config} onGameReady={handleGameReady} />
       <div className="absolute inset-0 pointer-events-none">
         {/* React overlay panels render here */}
       </div>

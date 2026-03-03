@@ -11,6 +11,9 @@ vi.mock('phaser', () => ({
       RESIZE: 3,
       CENTER_BOTH: 1,
     },
+    Scene: class MockScene {
+      constructor(_config: unknown) {}
+    },
   },
   __esModule: true,
 }));

@@ -73,6 +73,9 @@ vi.mock('phaser', () => ({
     Game: vi.fn().mockImplementation(() => ({ destroy: vi.fn() })),
     AUTO: 0,
     Scale: { RESIZE: 3, CENTER_BOTH: 1 },
+    Scene: class MockScene {
+      constructor(_config: unknown) {}
+    },
   },
   __esModule: true,
 }));
