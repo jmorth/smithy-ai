@@ -12,6 +12,7 @@ const WorkerPoolDetailPage = lazy(() => import('./pages/worker-pool-detail'));
 const PackageListPage = lazy(() => import('./pages/package-list'));
 const PackageDetailPage = lazy(() => import('./pages/packages/[id]'));
 const WorkerListPage = lazy(() => import('./pages/worker-list'));
+const WorkerCreatePage = lazy(() => import('./pages/worker-create'));
 const WorkerDetailPage = lazy(() => import('./pages/worker-detail'));
 const LogViewerPage = lazy(() => import('./pages/log-viewer'));
 const FactoryPage = lazy(() => import('./pages/factory'));
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="packages" element={<PackageListPage />} />
           <Route path="packages/:id" element={<PackageDetailPage />} />
           <Route path="workers" element={<WorkerListPage />} />
+          <Route path="workers/create" element={<WorkerCreatePage />} />
           <Route path="workers/:slug" element={<WorkerDetailPage />} />
           <Route path="logs" element={<LogViewerPage />} />
           <Route path="factory" element={<FactoryPage />} />

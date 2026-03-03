@@ -423,6 +423,14 @@ export const workers = {
       { body: data, signal },
     );
   },
+
+  deprecateVersion(slug: string, version: number, signal?: AbortSignal) {
+    return request<WorkerVersion>(
+      'PATCH',
+      `/workers/${encodeURIComponent(slug)}/versions/${version}`,
+      { body: { status: 'DEPRECATED' }, signal },
+    );
+  },
 };
 
 // ---------------------------------------------------------------------------
