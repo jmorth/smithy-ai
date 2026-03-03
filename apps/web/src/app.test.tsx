@@ -36,7 +36,20 @@ vi.mock('./api/client', () => ({
     update: vi.fn(),
     submitPackage: vi.fn(),
   },
-  workers: { list: vi.fn().mockResolvedValue([]) },
+  workers: {
+    list: vi.fn().mockResolvedValue([]),
+    get: vi.fn().mockResolvedValue({
+      id: 'w-1',
+      name: 'Summarizer',
+      slug: 'summarizer',
+      versions: [],
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    }),
+    create: vi.fn(),
+    createVersion: vi.fn(),
+    deprecateVersion: vi.fn(),
+  },
   packages: {
     list: vi.fn().mockResolvedValue({ data: [], meta: { total: 0, limit: 0 } }),
     get: vi.fn().mockResolvedValue({
@@ -164,7 +177,7 @@ describe('App', () => {
 
   it('renders Worker detail page on /workers/:slug', async () => {
     renderApp(['/workers/summarizer']);
-    expect(await screen.findByRole('heading', { level: 2, name: 'Worker: summarizer' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Summarizer' })).toBeInTheDocument();
   });
 
   it('renders Logs page on /logs', async () => {
