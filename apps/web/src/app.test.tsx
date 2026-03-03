@@ -36,15 +36,15 @@ describe('App', () => {
     localStorage.clear();
   });
 
-  it('renders the shell layout with sidebar and header', () => {
+  it('renders the shell layout with sidebar and header', async () => {
     renderApp();
-    expect(screen.getByTestId('desktop-sidebar')).toBeInTheDocument();
+    expect(await screen.findByTestId('desktop-sidebar')).toBeInTheDocument();
     expect(screen.getByRole('banner')).toBeInTheDocument();
   });
 
-  it('renders the Dashboard placeholder on the home route', () => {
+  it('renders Dashboard page on /', async () => {
     renderApp();
-    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Dashboard');
+    expect(await screen.findByRole('heading', { level: 2, name: 'Dashboard' })).toBeInTheDocument();
   });
 
   it('renders the main content area', () => {
@@ -52,33 +52,82 @@ describe('App', () => {
     expect(screen.getByRole('main')).toBeInTheDocument();
   });
 
-  it('renders Assembly Lines page on /assembly-lines', () => {
+  it('renders Assembly Line list page on /assembly-lines', async () => {
     renderApp(['/assembly-lines']);
-    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Assembly Lines');
+    expect(await screen.findByRole('heading', { level: 2, name: 'Assembly Lines' })).toBeInTheDocument();
   });
 
-  it('renders Worker Pools page on /worker-pools', () => {
+  it('renders Assembly Line create page on /assembly-lines/create', async () => {
+    renderApp(['/assembly-lines/create']);
+    expect(await screen.findByRole('heading', { level: 2, name: 'Create Assembly Line' })).toBeInTheDocument();
+  });
+
+  it('renders Assembly Line detail page on /assembly-lines/:slug', async () => {
+    renderApp(['/assembly-lines/my-pipeline']);
+    expect(await screen.findByRole('heading', { level: 2, name: 'Assembly Line: my-pipeline' })).toBeInTheDocument();
+  });
+
+  it('renders Worker Pool list page on /worker-pools', async () => {
     renderApp(['/worker-pools']);
-    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Worker Pools');
+    expect(await screen.findByRole('heading', { level: 2, name: 'Worker Pools' })).toBeInTheDocument();
   });
 
-  it('renders Packages page on /packages', () => {
+  it('renders Worker Pool create page on /worker-pools/create', async () => {
+    renderApp(['/worker-pools/create']);
+    expect(await screen.findByRole('heading', { level: 2, name: 'Create Worker Pool' })).toBeInTheDocument();
+  });
+
+  it('renders Worker Pool detail page on /worker-pools/:slug', async () => {
+    renderApp(['/worker-pools/gpu-pool']);
+    expect(await screen.findByRole('heading', { level: 2, name: 'Worker Pool: gpu-pool' })).toBeInTheDocument();
+  });
+
+  it('renders Package list page on /packages', async () => {
     renderApp(['/packages']);
-    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Packages');
+    expect(await screen.findByRole('heading', { level: 2, name: 'Packages' })).toBeInTheDocument();
   });
 
-  it('renders Workers page on /workers', () => {
+  it('renders Package detail page on /packages/:id', async () => {
+    renderApp(['/packages/abc-123']);
+    expect(await screen.findByRole('heading', { level: 2, name: 'Package: abc-123' })).toBeInTheDocument();
+  });
+
+  it('renders Worker list page on /workers', async () => {
     renderApp(['/workers']);
-    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Workers');
+    expect(await screen.findByRole('heading', { level: 2, name: 'Workers' })).toBeInTheDocument();
   });
 
-  it('renders Logs page on /logs', () => {
+  it('renders Worker detail page on /workers/:slug', async () => {
+    renderApp(['/workers/summarizer']);
+    expect(await screen.findByRole('heading', { level: 2, name: 'Worker: summarizer' })).toBeInTheDocument();
+  });
+
+  it('renders Logs page on /logs', async () => {
     renderApp(['/logs']);
-    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Logs');
+    expect(await screen.findByRole('heading', { level: 2, name: 'Logs' })).toBeInTheDocument();
   });
 
-  it('renders Factory page on /factory', () => {
+  it('renders Factory page on /factory', async () => {
     renderApp(['/factory']);
-    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Factory');
+    expect(await screen.findByRole('heading', { level: 2, name: 'Factory' })).toBeInTheDocument();
+  });
+
+  it('renders 404 Not Found page for unknown routes', async () => {
+    renderApp(['/does-not-exist']);
+    expect(await screen.findByRole('heading', { level: 2, name: 'Page Not Found' })).toBeInTheDocument();
+    expect(screen.getByText('The page you are looking for does not exist.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Back to Dashboard' })).toHaveAttribute('href', '/');
+  });
+
+  it('does not render /assembly-lines/create as a :slug route', async () => {
+    renderApp(['/assembly-lines/create']);
+    expect(await screen.findByRole('heading', { level: 2, name: 'Create Assembly Line' })).toBeInTheDocument();
+    expect(screen.queryByText('Assembly Line: create')).not.toBeInTheDocument();
+  });
+
+  it('does not render /worker-pools/create as a :slug route', async () => {
+    renderApp(['/worker-pools/create']);
+    expect(await screen.findByRole('heading', { level: 2, name: 'Create Worker Pool' })).toBeInTheDocument();
+    expect(screen.queryByText('Worker Pool: create')).not.toBeInTheDocument();
   });
 });
