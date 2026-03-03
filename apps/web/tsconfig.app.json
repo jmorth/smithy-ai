@@ -3,11 +3,18 @@
   "compilerOptions": {
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
-    "baseUrl": "../..",
+    "baseUrl": ".",
     "outDir": "dist",
     "rootDir": "src",
     "composite": true,
-    "noEmit": false
+    "noEmit": false,
+    "paths": {
+      "@/*": ["src/*"],
+      "@smithy/shared": ["../../packages/shared/src"],
+      "@smithy/shared/*": ["../../packages/shared/src/*"],
+      "@smithy/worker-sdk": ["../../packages/worker-sdk/src"],
+      "@smithy/worker-sdk/*": ["../../packages/worker-sdk/src/*"]
+    }
   },
   "include": ["src"]
 }
