@@ -56,10 +56,14 @@ export interface PaginatedResponse<T> {
 // --- Packages ---
 
 export interface PackagePaginationParams {
-  cursor?: string;
+  page?: number;
   limit?: number;
+  search?: string;
   type?: string;
-  status?: PackageStatus;
+  status?: string;
+  createdAfter?: string;
+  createdBefore?: string;
+  sort?: string;
 }
 
 export interface CreatePackageBody {

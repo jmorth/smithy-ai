@@ -230,7 +230,7 @@ describe('buildUrl', () => {
       jsonResponse({ data: [], meta: { limit: 20, total: 0 } }),
     );
 
-    await packages.list({ limit: undefined, cursor: undefined });
+    await packages.list({ limit: undefined, page: undefined });
     expect(lastFetchUrl()).toBe('/api/packages');
   });
 
