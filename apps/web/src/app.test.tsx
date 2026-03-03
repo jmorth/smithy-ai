@@ -6,7 +6,20 @@ import { useAppStore } from './stores/app.store';
 import App from './app';
 
 vi.mock('./api/client', () => ({
-  assemblyLines: { list: vi.fn().mockResolvedValue([]) },
+  assemblyLines: {
+    list: vi.fn().mockResolvedValue([]),
+    get: vi.fn().mockResolvedValue({
+      id: 'line-1',
+      name: 'My Pipeline',
+      slug: 'my-pipeline',
+      status: 'ACTIVE',
+      steps: [],
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    }),
+    update: vi.fn(),
+    listPackages: vi.fn().mockResolvedValue({ data: [], meta: { total: 0, limit: 20 } }),
+  },
   workerPools: { list: vi.fn().mockResolvedValue([]) },
   packages: { list: vi.fn().mockResolvedValue({ data: [], meta: { total: 0, limit: 0 } }) },
 }));
@@ -18,6 +31,8 @@ vi.mock('./api/socket', () => ({
     disconnect: vi.fn(),
     getState: vi.fn(() => 'disconnected'),
     onStateChange: vi.fn(() => vi.fn()),
+    subscribeAssemblyLine: vi.fn(),
+    unsubscribe: vi.fn(),
   },
 }));
 
@@ -80,7 +95,7 @@ describe('App', () => {
 
   it('renders Assembly Line detail page on /assembly-lines/:slug', async () => {
     renderApp(['/assembly-lines/my-pipeline']);
-    expect(await screen.findByRole('heading', { level: 2, name: 'Assembly Line: my-pipeline' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'My Pipeline' })).toBeInTheDocument();
   });
 
   it('renders Worker Pool list page on /worker-pools', async () => {
