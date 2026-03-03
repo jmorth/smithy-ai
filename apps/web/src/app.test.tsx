@@ -1,9 +1,25 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useAppStore } from './stores/app.store';
 import App from './app';
+
+vi.mock('./api/client', () => ({
+  assemblyLines: { list: vi.fn().mockResolvedValue([]) },
+  workerPools: { list: vi.fn().mockResolvedValue([]) },
+  packages: { list: vi.fn().mockResolvedValue({ data: [], meta: { total: 0, limit: 0 } }) },
+}));
+
+vi.mock('./api/socket', () => ({
+  socketManager: {
+    onEvent: vi.fn(() => vi.fn()),
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    getState: vi.fn(() => 'disconnected'),
+    onStateChange: vi.fn(() => vi.fn()),
+  },
+}));
 
 function resetStore() {
   useAppStore.setState({
@@ -44,7 +60,7 @@ describe('App', () => {
 
   it('renders Dashboard page on /', async () => {
     renderApp();
-    expect(await screen.findByRole('heading', { level: 2, name: 'Dashboard' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'System Overview' })).toBeInTheDocument();
   });
 
   it('renders the main content area', () => {
