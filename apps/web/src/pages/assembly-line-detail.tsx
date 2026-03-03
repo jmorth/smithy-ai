@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { PackageSubmitDialog } from '@/components/package-submit-dialog';
 import {
   Dialog,
   DialogContent,
@@ -167,6 +168,9 @@ export default function AssemblyLineDetailPage() {
   const [errorSteps, setErrorSteps] = useState<Set<number>>(new Set());
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [compact, setCompact] = useState(false);
+
+  // Submit package dialog
+  const [submitOpen, setSubmitOpen] = useState(false);
 
   // Pause/Resume confirmation dialog
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -498,9 +502,7 @@ export default function AssemblyLineDetailPage() {
           )}
           <Button
             size="sm"
-            onClick={() =>
-              navigate(`/assembly-lines/${assemblyLine.slug}/submit`)
-            }
+            onClick={() => setSubmitOpen(true)}
           >
             <Plus className="mr-2 h-4 w-4" />
             Submit Package
@@ -544,6 +546,15 @@ export default function AssemblyLineDetailPage() {
         }
         onLoadMore={() => refetchPackages()}
       />
+
+      {/* Submit package dialog */}
+      {slug && (
+        <PackageSubmitDialog
+          target={{ type: 'assembly-line', slug }}
+          open={submitOpen}
+          onOpenChange={setSubmitOpen}
+        />
+      )}
 
       {/* Confirmation dialog */}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>

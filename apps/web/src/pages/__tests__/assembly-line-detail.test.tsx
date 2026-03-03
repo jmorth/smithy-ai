@@ -364,15 +364,15 @@ describe('AssemblyLineDetailPage', () => {
       ).toBeInTheDocument();
     });
 
-    it('navigates to submit page on Submit Package click', async () => {
+    it('opens submit dialog on Submit Package click', async () => {
       const user = userEvent.setup();
       renderPage();
       await user.click(
         await screen.findByRole('button', { name: /Submit Package/i }),
       );
-      expect(mockNavigate).toHaveBeenCalledWith(
-        '/assembly-lines/test-pipeline/submit',
-      );
+      expect(
+        await screen.findByRole('heading', { name: 'Submit Package' }),
+      ).toBeInTheDocument();
     });
 
     it('renders Edit button', async () => {

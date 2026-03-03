@@ -68,6 +68,18 @@ export interface CreatePackageBody {
   assemblyLineId?: string;
 }
 
+export interface FileUploadUrlResponse {
+  uploadUrl: string;
+  fileId: string;
+}
+
+export interface FileConfirmBody {
+  fileId: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+}
+
 export interface UpdatePackageBody {
   type?: string;
   metadata?: Record<string, unknown>;
@@ -319,6 +331,26 @@ export const packages = {
       'DELETE',
       `/packages/${encodeURIComponent(id)}`,
       { signal },
+    );
+  },
+
+  getUploadUrl(
+    id: string,
+    body: { fileName: string; contentType: string },
+    signal?: AbortSignal,
+  ) {
+    return request<FileUploadUrlResponse>(
+      'POST',
+      `/packages/${encodeURIComponent(id)}/files/upload-url`,
+      { body, signal },
+    );
+  },
+
+  confirmUpload(id: string, body: FileConfirmBody, signal?: AbortSignal) {
+    return request<void>(
+      'POST',
+      `/packages/${encodeURIComponent(id)}/files/confirm`,
+      { body, signal },
     );
   },
 };
