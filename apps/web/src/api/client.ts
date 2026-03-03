@@ -1,11 +1,13 @@
 import type {
   Package,
+  PackageFile,
   Worker,
   WorkerVersion,
   AssemblyLine,
   AssemblyLineStep,
   WorkerPool,
   WorkerPoolMember,
+  JobExecution,
   Notification,
   WebhookEndpoint,
 } from '@smithy/shared';
@@ -172,6 +174,19 @@ export interface UpdateWebhookBody {
   secret?: string;
   events?: string[];
   active?: boolean;
+}
+
+// --- Jobs ---
+
+export interface JobQueryParams {
+  packageId?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface FileDownloadUrlResponse {
+  downloadUrl: string;
 }
 
 // --- Logs ---
@@ -355,6 +370,22 @@ export const packages = {
       'POST',
       `/packages/${encodeURIComponent(id)}/files/confirm`,
       { body, signal },
+    );
+  },
+
+  listFiles(id: string, signal?: AbortSignal) {
+    return request<PackageFile[]>(
+      'GET',
+      `/packages/${encodeURIComponent(id)}/files`,
+      { signal },
+    );
+  },
+
+  getDownloadUrl(id: string, fileId: string, signal?: AbortSignal) {
+    return request<FileDownloadUrlResponse>(
+      'POST',
+      `/packages/${encodeURIComponent(id)}/files/${encodeURIComponent(fileId)}/download-url`,
+      { signal },
     );
   },
 };
@@ -589,6 +620,14 @@ export const webhooks = {
 // ---------------------------------------------------------------------------
 
 export const jobs = {
+  list(params?: JobQueryParams, signal?: AbortSignal) {
+    return request<PaginatedResponse<JobExecution>>(
+      'GET',
+      '/jobs',
+      { params: params as Record<string, unknown>, signal },
+    );
+  },
+
   getLogs(jobId: string, params?: LogQueryParams, signal?: AbortSignal) {
     return request<LogsResponse>(
       'GET',
