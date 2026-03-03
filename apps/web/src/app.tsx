@@ -10,7 +10,7 @@ const WorkerPoolListPage = lazy(() => import('./pages/worker-pool-list'));
 const WorkerPoolCreatePage = lazy(() => import('./pages/worker-pool-create'));
 const WorkerPoolDetailPage = lazy(() => import('./pages/worker-pool-detail'));
 const PackageListPage = lazy(() => import('./pages/package-list'));
-const PackageDetailPage = lazy(() => import('./pages/package-detail'));
+const PackageDetailPage = lazy(() => import('./pages/packages/[id]'));
 const WorkerListPage = lazy(() => import('./pages/worker-list'));
 const WorkerDetailPage = lazy(() => import('./pages/worker-detail'));
 const LogViewerPage = lazy(() => import('./pages/log-viewer'));

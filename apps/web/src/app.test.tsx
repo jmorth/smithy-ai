@@ -37,7 +37,22 @@ vi.mock('./api/client', () => ({
     submitPackage: vi.fn(),
   },
   workers: { list: vi.fn().mockResolvedValue([]) },
-  packages: { list: vi.fn().mockResolvedValue({ data: [], meta: { total: 0, limit: 0 } }) },
+  packages: {
+    list: vi.fn().mockResolvedValue({ data: [], meta: { total: 0, limit: 0 } }),
+    get: vi.fn().mockResolvedValue({
+      id: 'abc-123',
+      type: 'USER_INPUT',
+      status: 'PENDING',
+      metadata: {},
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    }),
+    listFiles: vi.fn().mockResolvedValue([]),
+    getDownloadUrl: vi.fn(),
+  },
+  jobs: {
+    list: vi.fn().mockResolvedValue({ data: [], meta: { total: 0, limit: 50 } }),
+  },
 }));
 
 vi.mock('./api/socket', () => ({
@@ -49,6 +64,8 @@ vi.mock('./api/socket', () => ({
     onStateChange: vi.fn(() => vi.fn()),
     subscribeAssemblyLine: vi.fn(),
     subscribeWorkerPool: vi.fn(),
+    subscribeJob: vi.fn(),
+    sendInteractiveResponse: vi.fn(),
     unsubscribe: vi.fn(),
   },
 }));
@@ -137,7 +154,7 @@ describe('App', () => {
 
   it('renders Package detail page on /packages/:id', async () => {
     renderApp(['/packages/abc-123']);
-    expect(await screen.findByRole('heading', { level: 2, name: 'Package: abc-123' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Package' })).toBeInTheDocument();
   });
 
   it('renders Worker list page on /workers', async () => {
