@@ -20,7 +20,23 @@ vi.mock('./api/client', () => ({
     update: vi.fn(),
     listPackages: vi.fn().mockResolvedValue({ data: [], meta: { total: 0, limit: 20 } }),
   },
-  workerPools: { list: vi.fn().mockResolvedValue([]) },
+  workerPools: {
+    list: vi.fn().mockResolvedValue([]),
+    get: vi.fn().mockResolvedValue({
+      id: 'pool-1',
+      name: 'GPU Pool',
+      slug: 'gpu-pool',
+      status: 'ACTIVE',
+      maxConcurrency: 10,
+      members: [],
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    }),
+    create: vi.fn(),
+    update: vi.fn(),
+    submitPackage: vi.fn(),
+  },
+  workers: { list: vi.fn().mockResolvedValue([]) },
   packages: { list: vi.fn().mockResolvedValue({ data: [], meta: { total: 0, limit: 0 } }) },
 }));
 
@@ -32,6 +48,7 @@ vi.mock('./api/socket', () => ({
     getState: vi.fn(() => 'disconnected'),
     onStateChange: vi.fn(() => vi.fn()),
     subscribeAssemblyLine: vi.fn(),
+    subscribeWorkerPool: vi.fn(),
     unsubscribe: vi.fn(),
   },
 }));
@@ -110,7 +127,7 @@ describe('App', () => {
 
   it('renders Worker Pool detail page on /worker-pools/:slug', async () => {
     renderApp(['/worker-pools/gpu-pool']);
-    expect(await screen.findByRole('heading', { level: 2, name: 'Worker Pool: gpu-pool' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'GPU Pool' })).toBeInTheDocument();
   });
 
   it('renders Package list page on /packages', async () => {
