@@ -5,9 +5,6 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "outDir": "dist",
-    "rootDir": "src",
-    "composite": true,
-    "noEmit": false,
     "paths": {
       "@/*": ["src/*"],
       "@smithy/shared": ["../../packages/shared/src"],
