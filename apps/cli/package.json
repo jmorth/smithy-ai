@@ -14,7 +14,8 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@smithy/shared": "workspace:*"
+    "@smithy/shared": "workspace:*",
+    "commander": "^14.0.3"
   },
   "devDependencies": {
     "@types/bun": "latest",

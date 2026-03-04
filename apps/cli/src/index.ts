@@ -1,67 +1,135 @@
 #!/usr/bin/env bun
 
-const COMMANDS = ["dev", "ops"] as const;
-type Command = (typeof COMMANDS)[number];
+import { Command } from "commander";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 
-const HELP_TEXT = `
-Smithy CLI — the developer tool for managing AI workers and workflows.
-
-Usage:
-  smithy <command> [subcommand] [options]
-
-Commands:
-  dev     Local development commands (start, logs, status)
-  ops     Operational commands (deploy, scale, inspect)
-
-Options:
-  --help, -h    Show help information
-  --version, -v Show version information
-
-Run 'smithy <command> --help' for more information on a specific command.
-`.trim();
-
-export function printHelp(): void {
-  console.log(HELP_TEXT);
+function getVersion(): string {
+  const pkgPath = resolve(import.meta.dir, "../package.json");
+  const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+  return pkg.version;
 }
 
-export function printVersion(): void {
-  console.log("@smithy/cli v0.0.0");
+export function createProgram(): Command {
+  const program = new Command();
+
+  program
+    .name("smithy")
+    .description(
+      "Smithy CLI — the developer tool for managing AI workers and workflows.",
+    )
+    .version(getVersion(), "--version, -v", "Show version information")
+    .option("--json", "Output results in JSON format")
+    .showHelpAfterError(true);
+
+  // worker command group
+  const worker = program
+    .command("worker")
+    .description("Worker development commands");
+
+  worker
+    .command("scaffold")
+    .description("Scaffold a new worker project")
+    .action(async (opts, cmd) => {
+      const { run } = await import("./commands/worker/scaffold.js");
+      await run(cmd.parent!.parent!.opts(), cmd);
+    });
+
+  worker
+    .command("test")
+    .description("Run worker tests")
+    .action(async (opts, cmd) => {
+      const { run } = await import("./commands/worker/test.js");
+      await run(cmd.parent!.parent!.opts(), cmd);
+    });
+
+  worker
+    .command("lint")
+    .description("Lint worker source code")
+    .action(async (opts, cmd) => {
+      const { run } = await import("./commands/worker/lint.js");
+      await run(cmd.parent!.parent!.opts(), cmd);
+    });
+
+  worker
+    .command("build")
+    .description("Build worker for deployment")
+    .action(async (opts, cmd) => {
+      const { run } = await import("./commands/worker/build.js");
+      await run(cmd.parent!.parent!.opts(), cmd);
+    });
+
+  // config command group
+  const config = program
+    .command("config")
+    .description("Manage CLI configuration");
+
+  config
+    .command("get")
+    .description("Get a configuration value")
+    .argument("[key]", "Configuration key to retrieve")
+    .action(async (key, opts, cmd) => {
+      const { run } = await import("./commands/config/get.js");
+      await run(cmd.parent!.parent!.opts(), cmd, key);
+    });
+
+  config
+    .command("set")
+    .description("Set a configuration value")
+    .argument("[key]", "Configuration key")
+    .argument("[value]", "Configuration value")
+    .action(async (key, value, opts, cmd) => {
+      const { run } = await import("./commands/config/set.js");
+      await run(cmd.parent!.parent!.opts(), cmd, key, value);
+    });
+
+  config
+    .command("list")
+    .description("List all configuration values")
+    .action(async (opts, cmd) => {
+      const { run } = await import("./commands/config/list.js");
+      await run(cmd.parent!.parent!.opts(), cmd);
+    });
+
+  // top-level commands
+  program
+    .command("submit")
+    .description("Submit a package to the platform")
+    .action(async (opts, cmd) => {
+      const { run } = await import("./commands/submit.js");
+      await run(cmd.parent!.opts(), cmd);
+    });
+
+  program
+    .command("status")
+    .description("Show current platform status")
+    .action(async (opts, cmd) => {
+      const { run } = await import("./commands/status.js");
+      await run(cmd.parent!.opts(), cmd);
+    });
+
+  program
+    .command("logs")
+    .description("Stream worker execution logs")
+    .action(async (opts, cmd) => {
+      const { run } = await import("./commands/logs.js");
+      await run(cmd.parent!.opts(), cmd);
+    });
+
+  program
+    .command("packages")
+    .description("Manage packages on the platform")
+    .action(async (opts, cmd) => {
+      const { run } = await import("./commands/packages.js");
+      await run(cmd.parent!.opts(), cmd);
+    });
+
+  return program;
 }
 
-export function printUnknownCommand(command: string): void {
-  console.error(`Error: Unknown command '${command}'`);
-  console.error(`Run 'smithy --help' for a list of available commands.`);
-}
-
-export async function runCommand(command: Command, args: string[]): Promise<void> {
-  const mod = await import(`./commands/${command}/index.js`);
-  mod.run(args);
-}
-
-export function run(argv: string[]): void {
-  const args = argv.slice(2);
-
-  if (args.length === 0 || args[0] === "--help" || args[0] === "-h") {
-    printHelp();
-    return;
-  }
-
-  if (args[0] === "--version" || args[0] === "-v") {
-    printVersion();
-    return;
-  }
-
-  const command = args[0] as string;
-
-  if (!(COMMANDS as readonly string[]).includes(command)) {
-    printUnknownCommand(command);
-    process.exit(1);
-  }
-
-  runCommand(command as Command, args.slice(1));
-}
-
-// Only execute when run directly (not imported in tests)
 if (import.meta.main) {
-  run(process.argv);
+  const program = createProgram();
+  program.parseAsync(process.argv).catch(() => {
+    process.exit(1);
+  });
 }
