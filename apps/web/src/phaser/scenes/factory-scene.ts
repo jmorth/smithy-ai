@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 
+import { WorkerState } from '@smithy/shared';
 import { ASSET_KEYS } from '../constants/asset-keys';
 import { BRIDGE_EVENTS, type PhaserBridge } from '../bridge';
 import { CameraController } from '../systems/camera-controller';
@@ -9,6 +10,7 @@ import {
   TILE_WIDTH,
   TILE_HEIGHT,
 } from '../systems/isometric';
+import { WorkerMachine } from '../objects/worker-machine';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -16,16 +18,6 @@ import {
 
 export const DEFAULT_GRID_COLS = 20;
 export const DEFAULT_GRID_ROWS = 20;
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export interface WorkerMachineConfig {
-  tileX: number;
-  tileY: number;
-  state?: number; // frame index (0=idle, 1=working, 2=stuck, 3=error, 4=done)
-}
 
 export interface PackageCrateConfig {
   tileX: number;
@@ -41,7 +33,7 @@ export default class FactoryScene extends Phaser.Scene {
   private bridge: PhaserBridge | null = null;
   private ready = false;
 
-  readonly workerMachines = new Map<string, Phaser.GameObjects.Sprite>();
+  readonly workerMachines = new Map<string, WorkerMachine>();
   readonly packageCrates = new Map<string, Phaser.GameObjects.Sprite>();
 
   private floorTileGroup: Phaser.GameObjects.Group | null = null;
@@ -242,25 +234,12 @@ export default class FactoryScene extends Phaser.Scene {
   ): void {
     if (!this.bridge) return;
 
-    const workerId = this.findWorkerIdBySprite(gameObject);
-    if (workerId) {
-      this.bridge.onWorkerClicked(workerId);
-      return;
-    }
-
+    // WorkerMachine handles its own click events via pointerdown listener,
+    // so we only need to handle package crates here.
     const packageId = this.findPackageIdBySprite(gameObject);
     if (packageId) {
       this.bridge.onPackageClicked(packageId);
     }
-  }
-
-  private findWorkerIdBySprite(
-    gameObject: Phaser.GameObjects.GameObject,
-  ): string | undefined {
-    for (const [id, sprite] of this.workerMachines) {
-      if (sprite === gameObject) return id;
-    }
-    return undefined;
   }
 
   private findPackageIdBySprite(
@@ -276,21 +255,20 @@ export default class FactoryScene extends Phaser.Scene {
   // Game object management
   // -----------------------------------------------------------------------
 
-  addWorkerMachine(id: string, config: WorkerMachineConfig): Phaser.GameObjects.Sprite {
+  addWorkerMachine(id: string, config: { tileX: number; tileY: number; workerName?: string; initialState?: WorkerState }): WorkerMachine {
     this.removeWorkerMachine(id);
 
-    const iso = cartToIso(config.tileX, config.tileY);
-    const sprite = this.add.sprite(
-      iso.screenX,
-      iso.screenY,
-      ASSET_KEYS.WORKER_MACHINE,
-      config.state ?? 0,
-    );
-    sprite.setDepth(getDepth(config.tileX, config.tileY) + 0.1);
-    sprite.setInteractive();
+    const machine = WorkerMachine.create(this, {
+      tileX: config.tileX,
+      tileY: config.tileY,
+      workerId: id,
+      workerName: config.workerName,
+      initialState: config.initialState,
+      bridge: this.bridge ?? undefined,
+    });
 
-    this.workerMachines.set(id, sprite);
-    return sprite;
+    this.workerMachines.set(id, machine);
+    return machine;
   }
 
   removeWorkerMachine(id: string): void {
@@ -301,10 +279,10 @@ export default class FactoryScene extends Phaser.Scene {
     }
   }
 
-  updateWorkerState(id: string, state: number): void {
-    const sprite = this.workerMachines.get(id);
-    if (sprite) {
-      sprite.setFrame(state);
+  updateWorkerState(id: string, state: WorkerState): void {
+    const machine = this.workerMachines.get(id);
+    if (machine) {
+      machine.setWorkerState(state);
     }
   }
 
