@@ -34,6 +34,56 @@ vi.mock('../../systems/camera-controller', () => ({
   CameraController: vi.fn(() => mockCameraController),
 }));
 
+// ── Mock for WorkerMachine ──────────────────────────────────────────────
+
+function createMockWorkerMachine(config: {
+  tileX: number;
+  tileY: number;
+  workerId: string;
+  workerName?: string;
+  initialState?: string;
+}) {
+  return {
+    tileX: config.tileX,
+    tileY: config.tileY,
+    workerId: config.workerId,
+    setDepth: vi.fn().mockReturnThis(),
+    setInteractive: vi.fn().mockReturnThis(),
+    setFrame: vi.fn().mockReturnThis(),
+    setWorkerState: vi.fn().mockReturnThis(),
+    getState: vi.fn(() => config.initialState ?? 'WAITING'),
+    destroy: vi.fn(),
+  };
+}
+
+type MockWorkerMachineInstance = ReturnType<typeof createMockWorkerMachine>;
+let lastMockWorkerMachine: MockWorkerMachineInstance | null = null;
+
+vi.mock('../../objects/worker-machine', () => ({
+  WorkerMachine: {
+    create: vi.fn((_scene: unknown, config: {
+      tileX: number;
+      tileY: number;
+      workerId: string;
+      workerName?: string;
+      initialState?: string;
+    }) => {
+      lastMockWorkerMachine = createMockWorkerMachine(config);
+      return lastMockWorkerMachine;
+    }),
+  },
+}));
+
+vi.mock('@smithy/shared', () => ({
+  WorkerState: {
+    WAITING: 'WAITING',
+    WORKING: 'WORKING',
+    DONE: 'DONE',
+    STUCK: 'STUCK',
+    ERROR: 'ERROR',
+  },
+}));
+
 import FactoryScene from '../factory-scene';
 import {
   DEFAULT_GRID_COLS,
@@ -42,6 +92,8 @@ import {
 import { BRIDGE_EVENTS } from '../../bridge';
 import { ASSET_KEYS } from '../../constants/asset-keys';
 import { CameraController } from '../../systems/camera-controller';
+import { WorkerMachine } from '../../objects/worker-machine';
+import { WorkerState } from '@smithy/shared';
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -418,47 +470,33 @@ describe('FactoryScene', () => {
   describe('addWorkerMachine()', () => {
     beforeEach(() => scene.create());
 
-    it('creates a sprite at the correct isometric position', () => {
-      const add = getAdd(scene);
+    it('creates a WorkerMachine via WorkerMachine.create', () => {
       scene.addWorkerMachine('w-1', { tileX: 3, tileY: 2 });
-      const lastSpriteCall = add.sprite.mock.calls.at(-1)!;
-      // cartToIso(3, 2) = screenX: (3-2)*32 = 32, screenY: (3+2)*16 = 80
-      expect(lastSpriteCall[0]).toBe(32);
-      expect(lastSpriteCall[1]).toBe(80);
-      expect(lastSpriteCall[2]).toBe(ASSET_KEYS.WORKER_MACHINE);
+      expect(WorkerMachine.create).toHaveBeenCalledWith(
+        scene,
+        expect.objectContaining({ tileX: 3, tileY: 2, workerId: 'w-1' }),
+      );
     });
 
-    it('uses state frame 0 by default', () => {
-      const add = getAdd(scene);
-      scene.addWorkerMachine('w-1', { tileX: 0, tileY: 0 });
-      const lastSpriteCall = add.sprite.mock.calls.at(-1)!;
-      expect(lastSpriteCall[3]).toBe(0);
+    it('defaults to WAITING state', () => {
+      const machine = scene.addWorkerMachine('w-1', { tileX: 0, tileY: 0 });
+      expect(machine.getState()).toBe(WorkerState.WAITING);
     });
 
-    it('uses provided state frame', () => {
-      const add = getAdd(scene);
-      scene.addWorkerMachine('w-1', { tileX: 0, tileY: 0, state: 2 });
-      const lastSpriteCall = add.sprite.mock.calls.at(-1)!;
-      expect(lastSpriteCall[3]).toBe(2);
+    it('passes initial state to WorkerMachine', () => {
+      scene.addWorkerMachine('w-1', { tileX: 0, tileY: 0, initialState: WorkerState.STUCK });
+      expect(WorkerMachine.create).toHaveBeenCalledWith(
+        scene,
+        expect.objectContaining({ initialState: WorkerState.STUCK }),
+      );
     });
 
-    it('stores sprite in workerMachines map by ID', () => {
-      const sprite = scene.addWorkerMachine('w-1', { tileX: 1, tileY: 1 });
-      expect(scene.workerMachines.get('w-1')).toBe(sprite);
+    it('stores machine in workerMachines map by ID', () => {
+      const machine = scene.addWorkerMachine('w-1', { tileX: 1, tileY: 1 });
+      expect(scene.workerMachines.get('w-1')).toBe(machine);
     });
 
-    it('makes the sprite interactive', () => {
-      const sprite = scene.addWorkerMachine('w-1', { tileX: 1, tileY: 1 });
-      expect(sprite.setInteractive).toHaveBeenCalled();
-    });
-
-    it('sets depth above floor tile', () => {
-      const sprite = scene.addWorkerMachine('w-1', { tileX: 3, tileY: 2 });
-      // getDepth(3, 2) + 0.1 = 5.1
-      expect(sprite.setDepth).toHaveBeenCalledWith(5.1);
-    });
-
-    it('replaces existing sprite with same ID', () => {
+    it('replaces existing machine with same ID', () => {
       const first = scene.addWorkerMachine('w-1', { tileX: 1, tileY: 1 });
       const second = scene.addWorkerMachine('w-1', { tileX: 2, tileY: 2 });
       expect(first.destroy).toHaveBeenCalled();
@@ -466,10 +504,10 @@ describe('FactoryScene', () => {
       expect(scene.workerMachines.size).toBe(1);
     });
 
-    it('returns the created sprite', () => {
-      const sprite = scene.addWorkerMachine('w-1', { tileX: 0, tileY: 0 });
-      expect(sprite).toBeDefined();
-      expect(sprite.setDepth).toBeDefined();
+    it('returns the created machine', () => {
+      const machine = scene.addWorkerMachine('w-1', { tileX: 0, tileY: 0 });
+      expect(machine).toBeDefined();
+      expect(machine.workerId).toBe('w-1');
     });
   });
 
@@ -491,14 +529,14 @@ describe('FactoryScene', () => {
   describe('updateWorkerState()', () => {
     beforeEach(() => scene.create());
 
-    it('sets the frame on the sprite', () => {
-      const sprite = scene.addWorkerMachine('w-1', { tileX: 0, tileY: 0 });
-      scene.updateWorkerState('w-1', 3);
-      expect(sprite.setFrame).toHaveBeenCalledWith(3);
+    it('calls setWorkerState on the machine', () => {
+      const machine = scene.addWorkerMachine('w-1', { tileX: 0, tileY: 0 });
+      scene.updateWorkerState('w-1', WorkerState.ERROR);
+      expect(machine.setWorkerState).toHaveBeenCalledWith(WorkerState.ERROR);
     });
 
     it('does nothing for non-existent IDs', () => {
-      expect(() => scene.updateWorkerState('nonexistent', 1)).not.toThrow();
+      expect(() => scene.updateWorkerState('nonexistent', WorkerState.WORKING)).not.toThrow();
     });
   });
 
@@ -577,11 +615,13 @@ describe('FactoryScene', () => {
       scene.create();
     });
 
-    it('forwards worker clicks to bridge', () => {
-      const sprite = scene.addWorkerMachine('w-1', { tileX: 1, tileY: 1 });
+    it('does not forward worker machine clicks via gameobjectdown (handled by WorkerMachine internally)', () => {
+      const machine = scene.addWorkerMachine('w-1', { tileX: 1, tileY: 1 });
       const { input } = getHelpers(scene);
-      input.emit('gameobjectdown', {}, sprite);
-      expect(mockBridge.onWorkerClicked).toHaveBeenCalledWith('w-1');
+      input.emit('gameobjectdown', {}, machine);
+      // WorkerMachine handles its own click events via pointerdown listener,
+      // so gameobjectdown should not trigger onWorkerClicked
+      expect(mockBridge.onWorkerClicked).not.toHaveBeenCalled();
     });
 
     it('forwards package clicks to bridge', () => {
