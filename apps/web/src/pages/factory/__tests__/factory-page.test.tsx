@@ -1,5 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Phaser from 'phaser';
 import FactoryPage from '../index';
 
@@ -50,7 +52,34 @@ vi.mock('@/api/socket', () => ({
   },
 }));
 
+vi.mock('@/api/client', () => ({
+  assemblyLines: { list: vi.fn().mockResolvedValue([]) },
+  workerPools: { list: vi.fn().mockResolvedValue([]) },
+  packages: { create: vi.fn(), getUploadUrl: vi.fn(), confirmUpload: vi.fn() },
+  ApiError: class ApiError extends Error {
+    status: number;
+    constructor(status: number, message: string) {
+      super(message);
+      this.status = status;
+    }
+  },
+}));
+
 const MockGameCtor = vi.mocked(Phaser.Game);
+
+function createQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+}
+
+function renderWithProviders(ui: React.ReactElement) {
+  return render(
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
 
 describe('FactoryPage', () => {
   beforeEach(() => {
@@ -58,7 +87,7 @@ describe('FactoryPage', () => {
   });
 
   it('renders the full-viewport container', () => {
-    const { container } = render(<FactoryPage />);
+    const { container } = renderWithProviders(<FactoryPage />);
     const root = container.firstElementChild as HTMLElement;
     expect(root).not.toBeNull();
     expect(root.className).toContain('w-screen');
@@ -67,12 +96,12 @@ describe('FactoryPage', () => {
   });
 
   it('renders the phaser container', () => {
-    render(<FactoryPage />);
+    renderWithProviders(<FactoryPage />);
     expect(screen.getByTestId('phaser-container')).toBeInTheDocument();
   });
 
   it('renders an overlay div with pointer-events-none and z-10', () => {
-    const { container } = render(<FactoryPage />);
+    const { container } = renderWithProviders(<FactoryPage />);
     const root = container.firstElementChild as HTMLElement;
     const overlay = root.querySelector('.pointer-events-none');
     expect(overlay).toBeInTheDocument();
@@ -82,12 +111,12 @@ describe('FactoryPage', () => {
   });
 
   it('mounts PhaserGame component that creates a game instance', () => {
-    render(<FactoryPage />);
+    renderWithProviders(<FactoryPage />);
     expect(MockGameCtor).toHaveBeenCalledTimes(1);
   });
 
   it('overlay is a sibling of the phaser container', () => {
-    const { container } = render(<FactoryPage />);
+    const { container } = renderWithProviders(<FactoryPage />);
     const root = container.firstElementChild as HTMLElement;
     const children = Array.from(root.children);
     expect(children.length).toBe(2);

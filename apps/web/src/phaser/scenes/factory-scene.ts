@@ -170,6 +170,9 @@ export default class FactoryScene extends Phaser.Scene {
       this.onSocketStateChanged,
       this,
     );
+    this.events.on(BRIDGE_EVENTS.ZOOM_TO, this.onZoomTo, this);
+    this.events.on(BRIDGE_EVENTS.CENTER_ON, this.onCenterOn, this);
+    this.events.on(BRIDGE_EVENTS.RESET_VIEW, this.onResetView, this);
   }
 
   private removeBridgeListeners(): void {
@@ -198,6 +201,9 @@ export default class FactoryScene extends Phaser.Scene {
       this.onSocketStateChanged,
       this,
     );
+    this.events.off(BRIDGE_EVENTS.ZOOM_TO, this.onZoomTo, this);
+    this.events.off(BRIDGE_EVENTS.CENTER_ON, this.onCenterOn, this);
+    this.events.off(BRIDGE_EVENTS.RESET_VIEW, this.onResetView, this);
   }
 
   private onWorkerSelected(_payload: { workerId: string }): void {
@@ -218,6 +224,18 @@ export default class FactoryScene extends Phaser.Scene {
 
   private onSocketStateChanged(_payload: { socketState: string }): void {
     // Socket state visual indicator — handled by task 118/119
+  }
+
+  private onZoomTo(payload: { level: number }): void {
+    this.cameraController?.zoomTo(payload.level);
+  }
+
+  private onCenterOn(payload: { tileX: number; tileY: number }): void {
+    this.cameraController?.centerOn(payload.tileX, payload.tileY);
+  }
+
+  private onResetView(): void {
+    this.cameraController?.resetView();
   }
 
   // -----------------------------------------------------------------------

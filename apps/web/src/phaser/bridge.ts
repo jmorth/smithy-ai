@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import type { AppStore } from '@/stores/app.store';
+import type { FactoryStore } from '@/stores/factory.store';
 import type { StoreApi } from 'zustand';
 
 // ---------------------------------------------------------------------------
@@ -12,6 +13,9 @@ export const BRIDGE_EVENTS = {
   SELECTION_CLEARED: 'bridge:selection:cleared',
   VIEW_MODE_CHANGED: 'bridge:viewMode:changed',
   SOCKET_STATE_CHANGED: 'bridge:socket:stateChanged',
+  ZOOM_TO: 'bridge:camera:zoomTo',
+  CENTER_ON: 'bridge:camera:centerOn',
+  RESET_VIEW: 'bridge:camera:resetView',
 } as const;
 
 export type BridgeEventName =
@@ -25,6 +29,9 @@ export interface BridgeEventPayloads {
   [BRIDGE_EVENTS.SOCKET_STATE_CHANGED]: {
     socketState: AppStore['socketState'];
   };
+  [BRIDGE_EVENTS.ZOOM_TO]: { level: number };
+  [BRIDGE_EVENTS.CENTER_ON]: { tileX: number; tileY: number };
+  [BRIDGE_EVENTS.RESET_VIEW]: undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -44,6 +51,7 @@ interface QueuedEvent {
 export class PhaserBridge {
   private readonly game: Phaser.Game;
   private readonly store: StoreApi<AppStore>;
+  private readonly factoryStore: StoreApi<FactoryStore> | null;
   private readonly unsubscribers: Array<() => void> = [];
   private readonly eventQueue: QueuedEvent[] = [];
   private destroyed = false;
@@ -53,9 +61,14 @@ export class PhaserBridge {
     { sceneKey: string; event: BridgeEventName; payload: unknown }
   >();
 
-  constructor(game: Phaser.Game, store: StoreApi<AppStore>) {
+  constructor(
+    game: Phaser.Game,
+    store: StoreApi<AppStore>,
+    factoryStore?: StoreApi<FactoryStore>,
+  ) {
     this.game = game;
     this.store = store;
+    this.factoryStore = factoryStore ?? null;
     this.setupSubscriptions();
   }
 
@@ -123,6 +136,43 @@ export class PhaserBridge {
         );
       },
     );
+
+    this.setupFactorySubscriptions();
+  }
+
+  private setupFactorySubscriptions(): void {
+    if (!this.factoryStore) return;
+
+    this.subscribeFactorySlice(
+      (s) => s.zoomGeneration,
+      () => {
+        const { targetZoom } = this.factoryStore!.getState();
+        this.emitToScene('FactoryScene', BRIDGE_EVENTS.ZOOM_TO, {
+          level: targetZoom,
+        });
+      },
+    );
+
+    this.subscribeFactorySlice(
+      (s) => s.centerGeneration,
+      () => {
+        const { centerTarget } = this.factoryStore!.getState();
+        if (centerTarget) {
+          this.emitToScene('FactoryScene', BRIDGE_EVENTS.CENTER_ON, centerTarget);
+        }
+      },
+    );
+
+    this.subscribeFactorySlice(
+      (s) => s.resetViewGeneration,
+      () => {
+        this.emitToScene(
+          'FactoryScene',
+          BRIDGE_EVENTS.RESET_VIEW,
+          undefined,
+        );
+      },
+    );
   }
 
   private subscribeSlice<T>(
@@ -131,6 +181,22 @@ export class PhaserBridge {
   ): void {
     let prevValue = selector(this.store.getState());
     const unsub = this.store.subscribe((state) => {
+      const nextValue = selector(state);
+      if (nextValue !== prevValue) {
+        prevValue = nextValue;
+        callback(nextValue);
+      }
+    });
+    this.unsubscribers.push(unsub);
+  }
+
+  private subscribeFactorySlice<T>(
+    selector: (state: FactoryStore) => T,
+    callback: (value: T) => void,
+  ): void {
+    if (!this.factoryStore) return;
+    let prevValue = selector(this.factoryStore.getState());
+    const unsub = this.factoryStore.subscribe((state) => {
       const nextValue = selector(state);
       if (nextValue !== prevValue) {
         prevValue = nextValue;
