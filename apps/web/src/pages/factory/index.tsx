@@ -1,13 +1,24 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import Phaser from 'phaser';
 import PhaserGame, { type PhaserGameHandle } from '@/phaser/game';
 import { createGameConfig } from '@/phaser/config';
+import { PhaserBridge } from '@/phaser/bridge';
+import { useAppStore } from '@/stores/app.store';
 
 export default function FactoryPage() {
   const gameRef = useRef<PhaserGameHandle>(null);
+  const bridgeRef = useRef<PhaserBridge | null>(null);
 
   const handleGameReady = useCallback((game: Phaser.Game) => {
-    void game;
+    const store = useAppStore;
+    bridgeRef.current = new PhaserBridge(game, store);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      bridgeRef.current?.destroy();
+      bridgeRef.current = null;
+    };
   }, []);
 
   const config = useMemo(() => {
