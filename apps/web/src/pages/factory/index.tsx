@@ -4,6 +4,9 @@ import PhaserGame, { type PhaserGameHandle } from '@/phaser/game';
 import { createGameConfig } from '@/phaser/config';
 import { PhaserBridge } from '@/phaser/bridge';
 import { useAppStore } from '@/stores/app.store';
+import { WorkerDetailPanel } from './components/worker-detail-panel';
+import { PackageDetailPanel } from './components/package-detail-panel';
+import { InteractivePanel } from './components/interactive-panel';
 
 export default function FactoryPage() {
   const gameRef = useRef<PhaserGameHandle>(null);
@@ -30,8 +33,11 @@ export default function FactoryPage() {
   return (
     <div className="relative w-screen h-screen">
       <PhaserGame ref={gameRef} config={config} onGameReady={handleGameReady} />
-      <div className="absolute inset-0 pointer-events-none">
-        {/* React overlay panels render here */}
+      <div className="absolute inset-0 pointer-events-none z-10">
+        <WorkerDetailPanel />
+        <PackageDetailPanel />
+        <InteractivePanel />
+        {/* FactoryToolbar — task 121 */}
       </div>
     </div>
   );

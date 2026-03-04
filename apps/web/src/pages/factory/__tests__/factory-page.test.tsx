@@ -3,19 +3,51 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Phaser from 'phaser';
 import FactoryPage from '../index';
 
-vi.mock('phaser', () => ({
-  default: {
-    Game: vi.fn().mockImplementation(() => ({ destroy: vi.fn() })),
-    AUTO: 0,
-    Scale: {
-      RESIZE: 3,
-      CENTER_BOTH: 1,
+vi.mock('phaser', () => {
+  class MockSprite {
+    constructor() {}
+    setInteractive() { return this; }
+    setOrigin() { return this; }
+    setDepth() { return this; }
+    setTint() { return this; }
+    on() { return this; }
+    destroy() {}
+  }
+
+  return {
+    default: {
+      Game: vi.fn().mockImplementation(() => ({ destroy: vi.fn() })),
+      AUTO: 0,
+      Scale: {
+        RESIZE: 3,
+        CENTER_BOTH: 1,
+      },
+      Scene: class MockScene {
+        constructor(_config: unknown) {}
+      },
+      GameObjects: {
+        Sprite: MockSprite,
+        Graphics: class MockGraphics {
+          constructor() {}
+        },
+        Container: class MockContainer {
+          constructor() {}
+        },
+        Text: class MockText {
+          constructor() {}
+        },
+      },
     },
-    Scene: class MockScene {
-      constructor(_config: unknown) {}
-    },
+    __esModule: true,
+  };
+});
+
+vi.mock('@/api/socket', () => ({
+  socketManager: {
+    sendInteractiveResponse: vi.fn(),
+    onEvent: vi.fn(() => vi.fn()),
+    connect: vi.fn(),
   },
-  __esModule: true,
 }));
 
 const MockGameCtor = vi.mocked(Phaser.Game);
@@ -39,13 +71,14 @@ describe('FactoryPage', () => {
     expect(screen.getByTestId('phaser-container')).toBeInTheDocument();
   });
 
-  it('renders an overlay div with pointer-events-none', () => {
+  it('renders an overlay div with pointer-events-none and z-10', () => {
     const { container } = render(<FactoryPage />);
     const root = container.firstElementChild as HTMLElement;
     const overlay = root.querySelector('.pointer-events-none');
     expect(overlay).toBeInTheDocument();
     expect(overlay!.className).toContain('absolute');
     expect(overlay!.className).toContain('inset-0');
+    expect(overlay!.className).toContain('z-10');
   });
 
   it('mounts PhaserGame component that creates a game instance', () => {
