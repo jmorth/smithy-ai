@@ -68,17 +68,38 @@ vi.mock('./api/client', () => ({
   },
 }));
 
-vi.mock('phaser', () => ({
-  default: {
-    Game: vi.fn().mockImplementation(() => ({ destroy: vi.fn() })),
-    AUTO: 0,
-    Scale: { RESIZE: 3, CENTER_BOTH: 1 },
-    Scene: class MockScene {
-      constructor(_config: unknown) {}
+vi.mock('phaser', () => {
+  class MockSprite {
+    setInteractive() { return this; }
+    setOrigin() { return this; }
+    setDepth() { return this; }
+    setTint() { return this; }
+    on() { return this; }
+    destroy() {}
+  }
+
+  return {
+    default: {
+      Game: vi.fn().mockImplementation(() => ({ destroy: vi.fn() })),
+      AUTO: 0,
+      Scale: { RESIZE: 3, CENTER_BOTH: 1 },
+      Scene: class MockScene {
+        constructor(_config: unknown) {}
+      },
+      GameObjects: {
+        Sprite: MockSprite,
+        Graphics: class MockGraphics {},
+        Container: class MockContainer {},
+        Text: class MockText {},
+      },
+      Math: {
+        Clamp: (val: number, min: number, max: number) =>
+          globalThis.Math.min(globalThis.Math.max(val, min), max),
+      },
     },
-  },
-  __esModule: true,
-}));
+    __esModule: true,
+  };
+});
 
 vi.mock('./api/socket', () => ({
   socketManager: {

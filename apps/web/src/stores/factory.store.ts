@@ -29,6 +29,11 @@ export interface FactoryState {
   layoutData: FactoryLayout | null;
   selectedMachine: string | null;
   selectedCrate: string | null;
+  targetZoom: number;
+  zoomGeneration: number;
+  centerTarget: { tileX: number; tileY: number } | null;
+  centerGeneration: number;
+  resetViewGeneration: number;
 }
 
 export interface FactoryActions {
@@ -41,6 +46,9 @@ export interface FactoryActions {
   selectCrate: (id: string | null) => void;
   addAnimation: (id: string) => void;
   removeAnimation: (id: string) => void;
+  zoomTo: (level: number) => void;
+  centerOn: (tileX: number, tileY: number) => void;
+  resetView: () => void;
 }
 
 export type FactoryStore = FactoryState & FactoryActions;
@@ -58,6 +66,11 @@ export const useFactoryStore = create<FactoryStore>()(
     layoutData: null,
     selectedMachine: null,
     selectedCrate: null,
+    targetZoom: 1,
+    zoomGeneration: 0,
+    centerTarget: null,
+    centerGeneration: 0,
+    resetViewGeneration: 0,
 
     // Actions
     updateWorkerState: (id, state) => {
@@ -125,6 +138,24 @@ export const useFactoryStore = create<FactoryStore>()(
       updated.delete(id);
       set({ activeAnimations: updated });
     },
+
+    zoomTo: (level) => {
+      set((s) => ({ targetZoom: level, zoomGeneration: s.zoomGeneration + 1 }));
+    },
+
+    centerOn: (tileX, tileY) => {
+      set((s) => ({
+        centerTarget: { tileX, tileY },
+        centerGeneration: s.centerGeneration + 1,
+      }));
+    },
+
+    resetView: () => {
+      set((s) => ({
+        targetZoom: 1,
+        resetViewGeneration: s.resetViewGeneration + 1,
+      }));
+    },
   })),
 );
 
@@ -143,3 +174,4 @@ export const useSelectedMachine = () =>
   useFactoryStore((s) => s.selectedMachine);
 export const useSelectedCrate = () =>
   useFactoryStore((s) => s.selectedCrate);
+export const useTargetZoom = () => useFactoryStore((s) => s.targetZoom);

@@ -108,8 +108,8 @@ describe('PhaserBridge', () => {
       );
     });
 
-    it('has exactly 5 event types', () => {
-      expect(Object.keys(BRIDGE_EVENTS)).toHaveLength(5);
+    it('has exactly 8 event types', () => {
+      expect(Object.keys(BRIDGE_EVENTS)).toHaveLength(8);
     });
   });
 

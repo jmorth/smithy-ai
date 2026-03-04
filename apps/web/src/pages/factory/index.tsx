@@ -4,9 +4,11 @@ import PhaserGame, { type PhaserGameHandle } from '@/phaser/game';
 import { createGameConfig } from '@/phaser/config';
 import { PhaserBridge } from '@/phaser/bridge';
 import { useAppStore } from '@/stores/app.store';
+import { useFactoryStore } from '@/stores/factory.store';
 import { WorkerDetailPanel } from './components/worker-detail-panel';
 import { PackageDetailPanel } from './components/package-detail-panel';
 import { InteractivePanel } from './components/interactive-panel';
+import { FactoryToolbar } from './components/factory-toolbar';
 
 export default function FactoryPage() {
   const gameRef = useRef<PhaserGameHandle>(null);
@@ -14,7 +16,8 @@ export default function FactoryPage() {
 
   const handleGameReady = useCallback((game: Phaser.Game) => {
     const store = useAppStore;
-    bridgeRef.current = new PhaserBridge(game, store);
+    const factoryStore = useFactoryStore;
+    bridgeRef.current = new PhaserBridge(game, store, factoryStore);
   }, []);
 
   useEffect(() => {
@@ -37,7 +40,7 @@ export default function FactoryPage() {
         <WorkerDetailPanel />
         <PackageDetailPanel />
         <InteractivePanel />
-        {/* FactoryToolbar — task 121 */}
+        <FactoryToolbar />
       </div>
     </div>
   );
