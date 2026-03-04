@@ -1,139 +1,239 @@
 import { describe, it, expect, beforeEach, afterEach, spyOn } from "bun:test";
-import { run, printHelp, printVersion, printUnknownCommand, runCommand } from "./index.js";
+import { resolve } from "path";
+import { createProgram } from "./index.js";
 
 describe("CLI entry point", () => {
   let consoleLogs: string[];
   let consoleErrors: string[];
-  let exitCode: number | undefined;
+  let stdoutWrites: string[];
+  let stderrWrites: string[];
   let consoleLogSpy: ReturnType<typeof spyOn>;
   let consoleErrorSpy: ReturnType<typeof spyOn>;
   let processExitSpy: ReturnType<typeof spyOn>;
+  let stdoutWriteSpy: ReturnType<typeof spyOn>;
+  let stderrWriteSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
     consoleLogs = [];
     consoleErrors = [];
-    exitCode = undefined;
+    stdoutWrites = [];
+    stderrWrites = [];
 
-    consoleLogSpy = spyOn(console, "log").mockImplementation((...args: unknown[]) => {
-      consoleLogs.push(args.join(" "));
-    });
+    consoleLogSpy = spyOn(console, "log").mockImplementation(
+      (...args: unknown[]) => {
+        consoleLogs.push(args.join(" "));
+      },
+    );
 
-    consoleErrorSpy = spyOn(console, "error").mockImplementation((...args: unknown[]) => {
-      consoleErrors.push(args.join(" "));
-    });
+    consoleErrorSpy = spyOn(console, "error").mockImplementation(
+      (...args: unknown[]) => {
+        consoleErrors.push(args.join(" "));
+      },
+    );
 
-    processExitSpy = spyOn(process, "exit").mockImplementation((code?: number) => {
-      exitCode = code;
-      throw new Error(`process.exit(${code})`);
-    });
+    processExitSpy = spyOn(process, "exit").mockImplementation(
+      (code?: number) => {
+        throw new Error(`process.exit(${code})`);
+      },
+    );
+
+    stdoutWriteSpy = spyOn(process.stdout, "write").mockImplementation(
+      (chunk: any) => {
+        stdoutWrites.push(String(chunk));
+        return true;
+      },
+    );
+
+    stderrWriteSpy = spyOn(process.stderr, "write").mockImplementation(
+      (chunk: any) => {
+        stderrWrites.push(String(chunk));
+        return true;
+      },
+    );
   });
 
   afterEach(() => {
     consoleLogSpy.mockRestore();
     consoleErrorSpy.mockRestore();
     processExitSpy.mockRestore();
+    stdoutWriteSpy.mockRestore();
+    stderrWriteSpy.mockRestore();
   });
 
-  describe("printHelp", () => {
-    it("prints Smithy CLI heading", () => {
-      printHelp();
-      expect(consoleLogs.join("\n")).toContain("Smithy CLI");
+  function parse(...args: string[]) {
+    const program = createProgram();
+    program.exitOverride();
+    return program.parseAsync(["node", "smithy", ...args]);
+  }
+
+  function allOutput(): string {
+    return (
+      stdoutWrites.join("") +
+      stderrWrites.join("") +
+      consoleLogs.join("\n") +
+      consoleErrors.join("\n")
+    );
+  }
+
+  describe("help output", () => {
+    it("prints help with --help flag", async () => {
+      await expect(parse("--help")).rejects.toThrow();
+      const output = allOutput();
+      expect(output).toContain("Smithy CLI");
+      expect(output).toContain("worker");
+      expect(output).toContain("config");
+      expect(output).toContain("submit");
+      expect(output).toContain("status");
+      expect(output).toContain("logs");
+      expect(output).toContain("packages");
     });
 
-    it("lists dev command", () => {
-      printHelp();
-      expect(consoleLogs.join("\n")).toContain("dev");
+    it("prints help with -h flag", async () => {
+      await expect(parse("-h")).rejects.toThrow();
+      expect(allOutput()).toContain("Smithy CLI");
     });
 
-    it("lists ops command", () => {
-      printHelp();
-      expect(consoleLogs.join("\n")).toContain("ops");
-    });
-
-    it("includes --help option", () => {
-      printHelp();
-      expect(consoleLogs.join("\n")).toContain("--help");
-    });
-  });
-
-  describe("printVersion", () => {
-    it("prints package name", () => {
-      printVersion();
-      expect(consoleLogs.join("\n")).toContain("@smithy/cli");
-    });
-  });
-
-  describe("printUnknownCommand", () => {
-    it("prints error with command name", () => {
-      printUnknownCommand("bogus");
-      expect(consoleErrors.join("\n")).toContain("bogus");
-    });
-
-    it("references --help", () => {
-      printUnknownCommand("bogus");
-      expect(consoleErrors.join("\n")).toContain("--help");
-    });
-  });
-
-  describe("runCommand", () => {
-    it("routes to dev command and runs it", async () => {
-      await runCommand("dev", []);
-      expect(consoleLogs.join("\n")).toContain("smithy dev");
-    });
-
-    it("routes to ops command and runs it", async () => {
-      await runCommand("ops", []);
-      expect(consoleLogs.join("\n")).toContain("smithy ops");
+    it("lists all top-level commands in help", async () => {
+      await expect(parse("--help")).rejects.toThrow();
+      const output = allOutput();
+      expect(output).toContain("worker");
+      expect(output).toContain("config");
+      expect(output).toContain("submit");
+      expect(output).toContain("status");
+      expect(output).toContain("logs");
+      expect(output).toContain("packages");
     });
   });
 
-  describe("run (argument parsing)", () => {
-    it("prints help when no arguments provided", () => {
-      run(["bun", "smithy"]);
-      expect(consoleLogs.join("\n")).toContain("Smithy CLI");
+  describe("version output", () => {
+    it("prints version with --version flag", async () => {
+      await expect(parse("--version")).rejects.toThrow();
+      expect(allOutput()).toContain("0.0.0");
     });
 
-    it("prints help with --help flag", () => {
-      run(["bun", "smithy", "--help"]);
-      expect(consoleLogs.join("\n")).toContain("Smithy CLI");
+    it("prints version with -v flag", async () => {
+      await expect(parse("-v")).rejects.toThrow();
+      expect(allOutput()).toContain("0.0.0");
+    });
+  });
+
+  describe("unknown commands", () => {
+    it("exits with error for unknown command", async () => {
+      await expect(parse("bogus")).rejects.toThrow();
     });
 
-    it("prints help with -h flag", () => {
-      run(["bun", "smithy", "-h"]);
-      expect(consoleLogs.join("\n")).toContain("Smithy CLI");
+    it("displays error mentioning unknown command name", async () => {
+      await expect(parse("notacommand")).rejects.toThrow();
+      expect(allOutput()).toContain("notacommand");
     });
 
-    it("prints version with --version flag", () => {
-      run(["bun", "smithy", "--version"]);
-      expect(consoleLogs.join("\n")).toContain("@smithy/cli");
+    it("shows help after unknown command error", async () => {
+      await expect(parse("bogus")).rejects.toThrow();
+      const output = allOutput();
+      expect(output).toContain("worker");
+    });
+  });
+
+  describe("global --json option", () => {
+    it("accepts --json flag without error", async () => {
+      await parse("--json", "submit");
+      expect(consoleLogs.join("\n")).toContain("Not implemented: submit");
+    });
+  });
+
+  describe("worker command group", () => {
+    it("shows worker help listing subcommands", async () => {
+      await expect(parse("worker", "--help")).rejects.toThrow();
+      const output = allOutput();
+      expect(output).toContain("scaffold");
+      expect(output).toContain("test");
+      expect(output).toContain("lint");
+      expect(output).toContain("build");
     });
 
-    it("prints version with -v flag", () => {
-      run(["bun", "smithy", "-v"]);
-      expect(consoleLogs.join("\n")).toContain("@smithy/cli");
+    it("runs worker scaffold stub", async () => {
+      await parse("worker", "scaffold");
+      expect(consoleLogs.join("\n")).toContain(
+        "Not implemented: worker scaffold",
+      );
     });
 
-    it("exits with code 1 for unknown command", () => {
-      expect(() => run(["bun", "smithy", "unknown-command"])).toThrow("process.exit(1)");
-      expect(exitCode).toBe(1);
+    it("runs worker test stub", async () => {
+      await parse("worker", "test");
+      expect(consoleLogs.join("\n")).toContain("Not implemented: worker test");
     });
 
-    it("prints error message for unknown command", () => {
-      expect(() => run(["bun", "smithy", "foobar"])).toThrow();
-      expect(consoleErrors.join("\n")).toContain("foobar");
+    it("runs worker lint stub", async () => {
+      await parse("worker", "lint");
+      expect(consoleLogs.join("\n")).toContain("Not implemented: worker lint");
     });
 
-    it("mentions --help in error message for unknown command", () => {
-      expect(() => run(["bun", "smithy", "foobar"])).toThrow();
-      expect(consoleErrors.join("\n")).toContain("--help");
+    it("runs worker build stub", async () => {
+      await parse("worker", "build");
+      expect(consoleLogs.join("\n")).toContain("Not implemented: worker build");
     });
 
-    it("routes dev command without throwing", () => {
-      expect(() => run(["bun", "smithy", "dev"])).not.toThrow();
+    it("errors on unknown worker subcommand", async () => {
+      await expect(parse("worker", "deploy")).rejects.toThrow();
+    });
+  });
+
+  describe("config command group", () => {
+    it("shows config help listing subcommands", async () => {
+      await expect(parse("config", "--help")).rejects.toThrow();
+      const output = allOutput();
+      expect(output).toContain("get");
+      expect(output).toContain("set");
+      expect(output).toContain("list");
     });
 
-    it("routes ops command without throwing", () => {
-      expect(() => run(["bun", "smithy", "ops"])).not.toThrow();
+    it("runs config get stub", async () => {
+      await parse("config", "get");
+      expect(consoleLogs.join("\n")).toContain("Not implemented: config get");
+    });
+
+    it("runs config set stub", async () => {
+      await parse("config", "set");
+      expect(consoleLogs.join("\n")).toContain("Not implemented: config set");
+    });
+
+    it("runs config list stub", async () => {
+      await parse("config", "list");
+      expect(consoleLogs.join("\n")).toContain("Not implemented: config list");
+    });
+
+    it("errors on unknown config subcommand", async () => {
+      await expect(parse("config", "delete")).rejects.toThrow();
+    });
+  });
+
+  describe("top-level commands", () => {
+    it("runs submit stub", async () => {
+      await parse("submit");
+      expect(consoleLogs.join("\n")).toContain("Not implemented: submit");
+    });
+
+    it("runs status stub", async () => {
+      await parse("status");
+      expect(consoleLogs.join("\n")).toContain("Not implemented: status");
+    });
+
+    it("runs logs stub", async () => {
+      await parse("logs");
+      expect(consoleLogs.join("\n")).toContain("Not implemented: logs");
+    });
+
+    it("runs packages stub", async () => {
+      await parse("packages");
+      expect(consoleLogs.join("\n")).toContain("Not implemented: packages");
+    });
+  });
+
+  describe("shebang and file structure", () => {
+    it("has shebang line at top of entry file", async () => {
+      const filePath = resolve(import.meta.dir, "index.ts");
+      const file = await Bun.file(filePath).text();
+      expect(file.startsWith("#!/usr/bin/env bun")).toBe(true);
     });
   });
 });
