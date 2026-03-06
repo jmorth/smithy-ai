@@ -30,9 +30,19 @@ export function createProgram(): Command {
   worker
     .command("scaffold")
     .description("Scaffold a new worker project")
-    .action(async (opts, cmd) => {
+    .argument("<name>", "Name of the worker to scaffold")
+    .option("--no-interactive", "Skip interactive prompts (use flags instead)")
+    .option("--input-types <types>", "Comma-separated input types")
+    .option("--output-type <type>", "Output type", "text")
+    .option(
+      "--provider <provider>",
+      "AI provider (anthropic, openai, google)",
+      "anthropic",
+    )
+    .option("--model <model>", "Model name (provider-specific default if omitted)")
+    .action(async (name, opts, cmd) => {
       const { run } = await import("./commands/worker/scaffold.js");
-      await run(cmd.parent!.parent!.opts(), cmd);
+      await run(cmd.parent!.parent!.opts(), cmd, name);
     });
 
   worker
