@@ -172,9 +172,10 @@ describe("CLI entry point", () => {
       // Just verify it doesn't crash
     });
 
-    it("runs worker build stub", async () => {
+    it("runs worker build command", async () => {
       await parse("worker", "build");
-      expect(consoleLogs.join("\n")).toContain("Not implemented: worker build");
+      // build now validates worker directory (not a stub)
+      // Just verify it doesn't crash
     });
 
     it("errors on unknown worker subcommand", async () => {
