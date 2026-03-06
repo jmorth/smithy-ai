@@ -15,9 +15,11 @@
     "typecheck": "turbo typecheck",
     "test:docker": "bun test docker/tests/",
     "test:ci": "bun test ./.github/tests/",
-    "test:infra": "bun test docker/tests/ ./.github/tests/"
+    "test:deploy": "bun test deploy/tests/",
+    "test:infra": "bun test docker/tests/ ./.github/tests/ deploy/tests/"
   },
   "devDependencies": {
+    "smol-toml": "^1.6.0",
     "turbo": "^2.0.0",
     "yaml": "^2.8.2"
   },
