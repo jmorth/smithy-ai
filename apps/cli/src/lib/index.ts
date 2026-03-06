@@ -1,12 +1,19 @@
-/**
- * Shared CLI utilities.
- *
- * This module will eventually contain:
- * - API client wrappers for communicating with the Smithy API
- * - Config file loaders (~/.smithy/config.json)
- * - Terminal output formatters (tables, spinners, colors)
- *
- * These utilities will be implemented in Phase 7 tasks (122–133).
- */
+export {
+  packages,
+  workers,
+  assemblyLines,
+  workerPools,
+  jobs,
+  resolveBaseUrl,
+  resetBaseUrl,
+  CliApiError,
+} from './api-client.js';
 
-export {};
+export type {
+  ListParams,
+  PaginatedResponse,
+  CreatePackageData,
+  SubmitPackageData,
+  JobLogEntry,
+  JobLogsParams,
+} from './api-client.js';
