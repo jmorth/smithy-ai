@@ -256,9 +256,14 @@ describe("CLI entry point", () => {
       }
     });
 
-    it("runs logs stub", async () => {
-      await parse("logs");
-      expect(consoleLogs.join("\n")).toContain("Not implemented: logs");
+    it("runs logs command (requires job-id argument)", async () => {
+      try {
+        await parse("logs");
+      } catch {
+        // Commander calls process.exit(1) for missing required argument
+      }
+      const output = allOutput();
+      expect(output).toContain("logs");
     });
 
     it("runs packages stub", async () => {

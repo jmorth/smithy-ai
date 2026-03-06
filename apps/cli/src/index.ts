@@ -136,10 +136,14 @@ export function createProgram(): Command {
 
   program
     .command("logs")
-    .description("Stream worker execution logs")
-    .action(async (opts, cmd) => {
+    .description("Fetch and display job execution logs")
+    .argument("<job-id>", "Job ID to fetch logs for")
+    .option("--follow", "Stream logs in real-time via SSE after displaying existing logs")
+    .option("--level <level>", "Minimum log level to display (info, warn, error)", "info")
+    .option("--tail <n>", "Show only the last N log entries")
+    .action(async (jobId, opts, cmd) => {
       const { run } = await import("./commands/logs.js");
-      await run(cmd.parent!.opts(), cmd);
+      await run(cmd.parent!.opts(), cmd, jobId);
     });
 
   program
