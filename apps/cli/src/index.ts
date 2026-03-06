@@ -64,10 +64,15 @@ export function createProgram(): Command {
 
   worker
     .command("build")
-    .description("Build worker for deployment")
-    .action(async (opts, cmd) => {
+    .description("Build a Docker image for a worker directory")
+    .argument("[path]", "Path to the worker directory", ".")
+    .option("--verbose", "Stream Docker build output to terminal")
+    .option("--tag <tag>", "Add an additional custom tag")
+    .option("--no-cache", "Build without Docker cache")
+    .option("--platform <platform>", "Target platform (e.g., linux/amd64)")
+    .action(async (path, opts, cmd) => {
       const { run } = await import("./commands/worker/build.js");
-      await run(cmd.parent!.parent!.opts(), cmd);
+      await run(cmd.parent!.parent!.opts(), cmd, path);
     });
 
   // config command group
