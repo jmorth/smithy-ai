@@ -203,19 +203,22 @@ describe("CLI entry point", () => {
       expect(output).toContain("list");
     });
 
-    it("runs config get stub", async () => {
+    it("runs config get (requires key argument)", async () => {
       await parse("config", "get");
-      expect(consoleLogs.join("\n")).toContain("Not implemented: config get");
+      // Without a key argument, the command outputs an error to stderr
+      expect(process.exitCode).toBe(1);
     });
 
-    it("runs config set stub", async () => {
+    it("runs config set (requires key and value arguments)", async () => {
       await parse("config", "set");
-      expect(consoleLogs.join("\n")).toContain("Not implemented: config set");
+      // Without arguments, the command outputs an error to stderr
+      expect(process.exitCode).toBe(1);
     });
 
-    it("runs config list stub", async () => {
+    it("runs config list without throwing", async () => {
+      process.exitCode = 0;
       await parse("config", "list");
-      expect(consoleLogs.join("\n")).toContain("Not implemented: config list");
+      expect(process.exitCode).toBe(0);
     });
 
     it("errors on unknown config subcommand", async () => {
@@ -266,9 +269,23 @@ describe("CLI entry point", () => {
       expect(output).toContain("logs");
     });
 
-    it("runs packages stub", async () => {
-      await parse("packages");
-      expect(consoleLogs.join("\n")).toContain("Not implemented: packages");
+    it("runs packages command (fetch will fail without server)", async () => {
+      process.exitCode = 0;
+      const { resetBaseUrl } = await import("./lib/api-client.js");
+      resetBaseUrl();
+      const fetchSpy = spyOn(globalThis, "fetch");
+      fetchSpy.mockResolvedValue(
+        new Response(JSON.stringify({ data: [], total: 0, page: 1, limit: 20 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+      try {
+        await parse("packages");
+        expect(process.exitCode).toBe(0);
+      } finally {
+        fetchSpy.mockRestore();
+      }
     });
   });
 

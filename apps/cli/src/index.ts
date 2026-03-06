@@ -148,7 +148,11 @@ export function createProgram(): Command {
 
   program
     .command("packages")
-    .description("Manage packages on the platform")
+    .description("List and view packages on the platform")
+    .option("--type <type>", "Filter packages by type")
+    .option("--status <status>", "Filter packages by status")
+    .option("--page <n>", "Page number (default: 1)", "1")
+    .option("--limit <n>", "Results per page (default: 20)", "20")
     .action(async (opts, cmd) => {
       const { run } = await import("./commands/packages.js");
       await run(cmd.parent!.opts(), cmd);
