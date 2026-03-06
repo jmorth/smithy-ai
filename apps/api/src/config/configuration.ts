@@ -6,6 +6,7 @@ export interface AppConfig {
     nodeEnv: string;
     corsOrigin: string;
     retentionDays: number;
+    retentionDryRun: boolean;
   };
   database: {
     url: string;
@@ -54,6 +55,7 @@ export function configuration(): AppConfig {
       nodeEnv: env.NODE_ENV,
       corsOrigin: env.CORS_ORIGIN,
       retentionDays: env.RETENTION_DAYS,
+      retentionDryRun: env.RETENTION_DRY_RUN,
     },
     database: {
       url: env.DATABASE_URL,

@@ -149,6 +149,35 @@ describe('envSchema', () => {
       }
     });
 
+    it('should default RETENTION_DRY_RUN to false', () => {
+      const result = envSchema.safeParse(validEnv);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.RETENTION_DRY_RUN).toBe(false);
+      }
+    });
+
+    it('should coerce RETENTION_DRY_RUN "true" to boolean true', () => {
+      const result = envSchema.safeParse({ ...validEnv, RETENTION_DRY_RUN: 'true' });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.RETENTION_DRY_RUN).toBe(true);
+      }
+    });
+
+    it('should coerce RETENTION_DRY_RUN "false" to boolean false', () => {
+      const result = envSchema.safeParse({ ...validEnv, RETENTION_DRY_RUN: 'false' });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.RETENTION_DRY_RUN).toBe(false);
+      }
+    });
+
+    it('should fail when RETENTION_DRY_RUN has an invalid value', () => {
+      const result = envSchema.safeParse({ ...validEnv, RETENTION_DRY_RUN: 'yes' });
+      expect(result.success).toBe(false);
+    });
+
     it('should fail when APP_PORT is non-numeric', () => {
       const result = envSchema.safeParse({ ...validEnv, APP_PORT: 'abc' });
       expect(result.success).toBe(false);

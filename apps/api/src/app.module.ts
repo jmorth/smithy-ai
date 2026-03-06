@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
 import { AppConfigModule } from './config/config.module';
@@ -19,6 +20,7 @@ import { LogsModule } from './modules/logs/logs.module';
   imports: [
     AppConfigModule,
     DatabaseModule,
+    ScheduleModule.forRoot(),
     EventsModule,
     StorageModule,
     HealthModule,

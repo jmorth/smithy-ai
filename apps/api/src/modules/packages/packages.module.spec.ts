@@ -1,20 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Global, Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PackagesModule } from './packages.module';
 import { PackagesController } from './packages.controller';
 import { PackagesService } from './packages.service';
+import { RetentionService } from './retention.service';
 import { DRIZZLE } from '../../database/database.constants';
 import { StorageService } from '../storage/storage.service';
 
-// A lightweight global stub module that provides the tokens PackagesService needs.
+// A lightweight global stub module that provides the tokens PackagesModule needs.
 @Global()
 @Module({
   providers: [
     { provide: DRIZZLE, useValue: {} },
-    { provide: StorageService, useValue: { getPresignedUploadUrl: vi.fn(), delete: vi.fn() } },
+    { provide: StorageService, useValue: { getPresignedUploadUrl: vi.fn(), delete: vi.fn(), deleteByPrefix: vi.fn() } },
+    { provide: ConfigService, useValue: { get: vi.fn().mockReturnValue(30) } },
   ],
-  exports: [DRIZZLE, StorageService],
+  exports: [DRIZZLE, StorageService, ConfigService],
 })
 class StubGlobalModule {}
 
@@ -38,6 +41,11 @@ describe('PackagesModule', () => {
 
   it('should provide PackagesService', () => {
     const service = module.get<PackagesService>(PackagesService);
+    expect(service).toBeDefined();
+  });
+
+  it('should provide RetentionService', () => {
+    const service = module.get<RetentionService>(RetentionService);
     expect(service).toBeDefined();
   });
 

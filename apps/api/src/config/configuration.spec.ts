@@ -30,6 +30,7 @@ describe('configuration()', () => {
       NODE_ENV: process.env['NODE_ENV'],
       CORS_ORIGIN: process.env['CORS_ORIGIN'],
       RETENTION_DAYS: process.env['RETENTION_DAYS'],
+      RETENTION_DRY_RUN: process.env['RETENTION_DRY_RUN'],
       DATABASE_URL: process.env['DATABASE_URL'],
       REDIS_URL: process.env['REDIS_URL'],
       RABBITMQ_URL: process.env['RABBITMQ_URL'],
@@ -55,6 +56,7 @@ describe('configuration()', () => {
     expect(config.app.nodeEnv).toBe('development');
     expect(config.app.corsOrigin).toBe('http://localhost:5173');
     expect(config.app.retentionDays).toBe(30);
+    expect(config.app.retentionDryRun).toBe(false);
   });
 
   it('should map database.url from DATABASE_URL', () => {
@@ -138,6 +140,13 @@ describe('configuration()', () => {
     const config = configuration();
     expect(config.app.retentionDays).toBe(60);
     delete process.env['RETENTION_DAYS'];
+  });
+
+  it('should map RETENTION_DRY_RUN true from environment', () => {
+    process.env['RETENTION_DRY_RUN'] = 'true';
+    const config = configuration();
+    expect(config.app.retentionDryRun).toBe(true);
+    delete process.env['RETENTION_DRY_RUN'];
   });
 
   describe('validation failures', () => {
