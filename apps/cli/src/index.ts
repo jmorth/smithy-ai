@@ -110,10 +110,16 @@ export function createProgram(): Command {
   // top-level commands
   program
     .command("submit")
-    .description("Submit a package to the platform")
-    .action(async (opts, cmd) => {
+    .description("Submit a package to an assembly line or worker pool")
+    .argument("<type>", "Package type (e.g., review, summarize)")
+    .option("--line <slug>", "Submit to an assembly line")
+    .option("--pool <slug>", "Submit to a worker pool")
+    .option("--file <path>", "Attach a file (repeatable)", (v: string, prev: string[]) => prev.concat(v), [] as string[])
+    .option("--metadata <key=value>", "Add metadata (repeatable)", (v: string, prev: string[]) => prev.concat(v), [] as string[])
+    .option("--dry-run", "Show what would be submitted without making API calls")
+    .action(async (type, opts, cmd) => {
       const { run } = await import("./commands/submit.js");
-      await run(cmd.parent!.opts(), cmd);
+      await run(cmd.parent!.opts(), cmd, type);
     });
 
   program

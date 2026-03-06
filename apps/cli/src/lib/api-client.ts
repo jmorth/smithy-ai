@@ -37,6 +37,33 @@ export interface SubmitPackageData {
   metadata?: Record<string, unknown>;
 }
 
+export interface PresignFileData {
+  filename: string;
+  contentType: string;
+}
+
+export interface PresignFileResponse {
+  uploadUrl: string;
+  fileKey: string;
+}
+
+export interface ConfirmFileData {
+  fileKey: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
+export interface PackageFileRecord {
+  id: string;
+  packageId: string;
+  fileKey: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
 export interface JobLogEntry {
   id: string;
   jobId: string;
@@ -198,7 +225,43 @@ export const packages = {
   create(data: CreatePackageData): Promise<Package> {
     return request('POST', '/packages', data);
   },
+  presign(id: string, data: PresignFileData): Promise<PresignFileResponse> {
+    return request(
+      'POST',
+      `/packages/${encodeURIComponent(id)}/files/presign`,
+      data,
+    );
+  },
+  confirmFile(id: string, data: ConfirmFileData): Promise<PackageFileRecord> {
+    return request(
+      'POST',
+      `/packages/${encodeURIComponent(id)}/files/confirm`,
+      data,
+    );
+  },
 };
+
+/**
+ * Upload a file to a presigned URL via PUT.
+ * This goes directly to S3, not through the API.
+ */
+export async function uploadToPresignedUrl(
+  url: string,
+  body: Uint8Array | Buffer,
+  contentType: string,
+): Promise<void> {
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': contentType },
+    body,
+  });
+  if (!response.ok) {
+    throw new CliApiError(
+      response.status,
+      `File upload failed: ${response.statusText || `HTTP ${response.status}`}`,
+    );
+  }
+}
 
 export const workers = {
   list(params?: ListParams): Promise<PaginatedResponse<Worker>> {
