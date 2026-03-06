@@ -55,10 +55,11 @@ export function createProgram(): Command {
 
   worker
     .command("lint")
-    .description("Lint worker source code")
-    .action(async (opts, cmd) => {
+    .description("Validate a worker directory for correctness")
+    .argument("[path]", "Path to the worker directory", ".")
+    .action(async (path, opts, cmd) => {
       const { run } = await import("./commands/worker/lint.js");
-      await run(cmd.parent!.parent!.opts(), cmd);
+      await run(cmd.parent!.parent!.opts(), cmd, path);
     });
 
   worker

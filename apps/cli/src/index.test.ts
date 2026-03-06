@@ -166,9 +166,10 @@ describe("CLI entry point", () => {
       expect(consoleLogs.join("\n")).toContain("Not implemented: worker test");
     });
 
-    it("runs worker lint stub", async () => {
+    it("runs worker lint command", async () => {
       await parse("worker", "lint");
-      expect(consoleLogs.join("\n")).toContain("Not implemented: worker lint");
+      // lint now runs actual checks against cwd (not a stub)
+      // Just verify it doesn't crash
     });
 
     it("runs worker build stub", async () => {
