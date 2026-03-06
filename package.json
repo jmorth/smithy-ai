@@ -13,7 +13,9 @@
     "lint": "turbo lint",
     "test": "turbo test",
     "typecheck": "turbo typecheck",
-    "test:docker": "bun test docker/tests/"
+    "test:docker": "bun test docker/tests/",
+    "test:ci": "bun test ./.github/tests/",
+    "test:infra": "bun test docker/tests/ ./.github/tests/"
   },
   "devDependencies": {
     "turbo": "^2.0.0",
