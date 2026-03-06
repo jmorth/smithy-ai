@@ -136,8 +136,8 @@ describe("CLI entry point", () => {
 
   describe("global --json option", () => {
     it("accepts --json flag without error", async () => {
-      await parse("--json", "submit");
-      expect(consoleLogs.join("\n")).toContain("Not implemented: submit");
+      await parse("--json", "status");
+      expect(consoleLogs.join("\n")).toContain("Not implemented: status");
     });
   });
 
@@ -213,9 +213,14 @@ describe("CLI entry point", () => {
   });
 
   describe("top-level commands", () => {
-    it("runs submit stub", async () => {
-      await parse("submit");
-      expect(consoleLogs.join("\n")).toContain("Not implemented: submit");
+    it("runs submit command (requires type argument)", async () => {
+      try {
+        await parse("submit");
+      } catch {
+        // Commander calls process.exit(1) for missing required argument
+      }
+      const output = allOutput();
+      expect(output).toContain("submit");
     });
 
     it("runs status stub", async () => {

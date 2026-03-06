@@ -13,6 +13,7 @@ import {
   assemblyLines,
   workerPools,
   jobs,
+  uploadToPresignedUrl,
   resolveBaseUrl,
   resetBaseUrl,
   CliApiError,
@@ -23,6 +24,8 @@ import type {
   CreatePackageData,
   SubmitPackageData,
   JobLogsParams,
+  PresignFileData,
+  ConfirmFileData,
 } from './api-client.js';
 
 // ---------------------------------------------------------------------------
@@ -292,6 +295,128 @@ describe('packages', () => {
       const { init } = lastFetchCall();
       expect(JSON.parse(init.body as string).assemblyLineId).toBe('line-1');
     });
+  });
+
+  describe('presign', () => {
+    it('sends POST /packages/:id/files/presign with body', async () => {
+      const data: PresignFileData = {
+        filename: 'test.pdf',
+        contentType: 'application/pdf',
+      };
+      const response = {
+        uploadUrl: 'https://s3.example.com/presigned',
+        fileKey: 'packages/pkg-1/abc/test.pdf',
+      };
+      mockFetchResponse(response);
+      const result = await packages.presign('pkg-1', data);
+      const { url, init } = lastFetchCall();
+      expect(url).toBe(
+        'http://localhost:3000/api/packages/pkg-1/files/presign',
+      );
+      expect(init.method).toBe('POST');
+      expect(JSON.parse(init.body as string)).toEqual(data);
+      expect(result).toEqual(response);
+    });
+
+    it('encodes package id in presign URL', async () => {
+      mockFetchResponse({ uploadUrl: 'https://s3.example.com', fileKey: 'k' });
+      await packages.presign('pkg/special', {
+        filename: 'f.txt',
+        contentType: 'text/plain',
+      });
+      const { url } = lastFetchCall();
+      expect(url).toContain('pkg%2Fspecial');
+    });
+  });
+
+  describe('confirmFile', () => {
+    it('sends POST /packages/:id/files/confirm with body', async () => {
+      const data: ConfirmFileData = {
+        fileKey: 'packages/pkg-1/abc/test.pdf',
+        filename: 'test.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 1024,
+      };
+      const response = {
+        id: 'file-1',
+        packageId: 'pkg-1',
+        ...data,
+        createdAt: '2026-03-06T00:00:00Z',
+      };
+      mockFetchResponse(response, 201);
+      const result = await packages.confirmFile('pkg-1', data);
+      const { url, init } = lastFetchCall();
+      expect(url).toBe(
+        'http://localhost:3000/api/packages/pkg-1/files/confirm',
+      );
+      expect(init.method).toBe('POST');
+      expect(JSON.parse(init.body as string)).toEqual(data);
+      expect(result).toEqual(response);
+    });
+
+    it('encodes package id in confirm URL', async () => {
+      mockFetchResponse({ id: 'f-1' }, 201);
+      await packages.confirmFile('pkg/special', {
+        fileKey: 'k',
+        filename: 'f',
+        mimeType: 'text/plain',
+        sizeBytes: 10,
+      });
+      const { url } = lastFetchCall();
+      expect(url).toContain('pkg%2Fspecial');
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// uploadToPresignedUrl
+// ---------------------------------------------------------------------------
+
+describe('uploadToPresignedUrl', () => {
+  it('sends PUT request with correct content type and body', async () => {
+    fetchSpy.mockResolvedValueOnce(new Response(null, { status: 200 }));
+    const body = new Uint8Array([72, 101, 108, 108, 111]);
+    await uploadToPresignedUrl(
+      'https://s3.example.com/presigned-url',
+      body,
+      'text/plain',
+    );
+    const { url, init } = lastFetchCall();
+    expect(url).toBe('https://s3.example.com/presigned-url');
+    expect(init.method).toBe('PUT');
+    expect((init.headers as Record<string, string>)['Content-Type']).toBe(
+      'text/plain',
+    );
+  });
+
+  it('throws CliApiError on non-2xx response', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response('Forbidden', { status: 403, statusText: 'Forbidden' }),
+    );
+    const body = new Uint8Array([1, 2, 3]);
+    try {
+      await uploadToPresignedUrl('https://s3.example.com/url', body, 'application/octet-stream');
+      expect.unreachable('should have thrown');
+    } catch (err) {
+      expect(err).toBeInstanceOf(CliApiError);
+      const apiErr = err as CliApiError;
+      expect(apiErr.status).toBe(403);
+      expect(apiErr.message).toContain('File upload failed');
+    }
+  });
+
+  it('handles empty status text with fallback', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response('', { status: 500, statusText: '' }),
+    );
+    const body = new Uint8Array([]);
+    try {
+      await uploadToPresignedUrl('https://s3.example.com/url', body, 'text/plain');
+      expect.unreachable('should have thrown');
+    } catch (err) {
+      const apiErr = err as CliApiError;
+      expect(apiErr.message).toContain('HTTP 500');
+    }
   });
 });
 
