@@ -18,12 +18,22 @@ export default function FactoryPage() {
     const store = useAppStore;
     const factoryStore = useFactoryStore;
     bridgeRef.current = new PhaserBridge(game, store, factoryStore);
+
+    // Expose for E2E testing (see task 140)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    w.__phaserGame__ = game;
+    w.__factoryStore__ = factoryStore;
   }, []);
 
   useEffect(() => {
     return () => {
       bridgeRef.current?.destroy();
       bridgeRef.current = null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const w = window as any;
+      delete w.__phaserGame__;
+      delete w.__factoryStore__;
     };
   }, []);
 
