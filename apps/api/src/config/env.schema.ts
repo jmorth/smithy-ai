@@ -49,6 +49,10 @@ export const envSchema = z.object({
     .default('30')
     .transform((val) => parseInt(val, 10))
     .pipe(z.number().int().positive()),
+  RETENTION_DRY_RUN: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((val) => val === 'true'),
 });
 
 export type EnvSchema = z.infer<typeof envSchema>;
