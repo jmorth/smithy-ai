@@ -49,3 +49,8 @@ temp/
 
 # Docker volumes and temporary files
 docker-compose.override.yml
+
+# Playwright
+e2e-results/
+playwright-report/
+test-results/
