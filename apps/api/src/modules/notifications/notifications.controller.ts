@@ -17,7 +17,7 @@ import {
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import {
   CurrentUser,
-  RequestUser,
+  UserPayload,
 } from '../../common/decorators/current-user.decorator';
 import { InAppService } from './channels/in-app.service';
 import { WebhookService } from './channels/webhook.service';
@@ -38,7 +38,7 @@ export class NotificationsController {
 
   @Get('notifications')
   async listNotifications(
-    @CurrentUser() user: RequestUser,
+    @CurrentUser() user: UserPayload,
     @Query() query: ListNotificationsQueryDto,
   ) {
     const result = await this.inAppService.listNotifications(
@@ -68,7 +68,7 @@ export class NotificationsController {
 
   @Patch('notifications/:id/read')
   async markRead(
-    @CurrentUser() user: RequestUser,
+    @CurrentUser() user: UserPayload,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     try {
@@ -93,7 +93,7 @@ export class NotificationsController {
   }
 
   @Patch('notifications/read-all')
-  async markAllRead(@CurrentUser() user: RequestUser) {
+  async markAllRead(@CurrentUser() user: UserPayload) {
     const count = await this.inAppService.markAllRead(user.id);
     return { updatedCount: count };
   }
@@ -101,7 +101,7 @@ export class NotificationsController {
   @Post('webhook-endpoints')
   @HttpCode(HttpStatus.CREATED)
   async createWebhookEndpoint(
-    @CurrentUser() user: RequestUser,
+    @CurrentUser() user: UserPayload,
     @Body() dto: CreateWebhookEndpointDto,
   ) {
     const endpoint = await this.webhookService.registerEndpoint(
@@ -120,14 +120,14 @@ export class NotificationsController {
   }
 
   @Get('webhook-endpoints')
-  async listWebhookEndpoints(@CurrentUser() user: RequestUser) {
+  async listWebhookEndpoints(@CurrentUser() user: UserPayload) {
     return this.webhookService.listEndpoints(user.id);
   }
 
   @Delete('webhook-endpoints/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteWebhookEndpoint(
-    @CurrentUser() user: RequestUser,
+    @CurrentUser() user: UserPayload,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     const endpoints = await this.webhookService.listEndpoints(user.id);
