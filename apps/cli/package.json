@@ -14,6 +14,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@inquirer/prompts": "^8.3.0",
     "@smithy/shared": "workspace:*",
     "chalk": "^5.6.2",
     "commander": "^14.0.3",

@@ -151,11 +151,14 @@ describe("CLI entry point", () => {
       expect(output).toContain("build");
     });
 
-    it("runs worker scaffold stub", async () => {
-      await parse("worker", "scaffold");
-      expect(consoleLogs.join("\n")).toContain(
-        "Not implemented: worker scaffold",
-      );
+    it("runs worker scaffold command (requires name argument)", async () => {
+      try {
+        await parse("worker", "scaffold");
+      } catch {
+        // Commander calls process.exit(1) for missing required argument
+      }
+      const output = allOutput();
+      expect(output).toContain("scaffold");
     });
 
     it("runs worker test stub", async () => {

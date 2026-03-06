@@ -1,0 +1,44 @@
+import type { Package, WorkerContext, PackageOutput } from '@smithy/shared';
+import { SmithyWorker } from '@smithy/worker-sdk';
+
+/**
+ * {{WORKER_NAME}} — a Smithy Worker.
+ *
+ * Lifecycle:
+ *   1. onReceive  — validate the incoming Package (optional).
+ *   2. onProcess  — do the actual work and return a PackageOutput.
+ */
+export class {{CLASS_NAME}} extends SmithyWorker {
+  /**
+   * Called when a Package arrives but before processing begins.
+   * Use this hook to validate the incoming Package, check preconditions,
+   * or reject Packages that this Worker cannot handle.
+   *
+   * Throw an error here to reject the Package immediately.
+   */
+  override async onReceive(pkg: Package): Promise<void> {
+    this.logger?.info('{{WORKER_NAME}} received package', { packageId: pkg.id });
+  }
+
+  /**
+   * Called to process the Package. This is the main entry point for your
+   * Worker's logic. Use `context.ai` for AI inference, `context.inputPackage`
+   * to read input files, and `context.outputBuilder` to build the output.
+   *
+   * @returns A PackageOutput containing the result files and metadata.
+   */
+  override async onProcess(context: WorkerContext): Promise<PackageOutput> {
+    const { inputPackage, outputBuilder, logger } = context;
+
+    const files = inputPackage.listFiles();
+    logger.info('Processing files', { count: files.length });
+
+    // TODO: Implement your Worker logic here.
+    // Example: read input, call AI, build output.
+
+    return outputBuilder
+      .setType('{{OUTPUT_TYPE}}')
+      .setMetadata('generatedAt', new Date().toISOString())
+      .build();
+  }
+}
