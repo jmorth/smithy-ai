@@ -136,8 +136,19 @@ describe("CLI entry point", () => {
 
   describe("global --json option", () => {
     it("accepts --json flag without error", async () => {
-      await parse("--json", "status");
-      expect(consoleLogs.join("\n")).toContain("Not implemented: status");
+      const fetchSpy = spyOn(globalThis, "fetch");
+      fetchSpy.mockResolvedValue(
+        new Response(JSON.stringify({ data: [], total: 0, page: 1, limit: 20 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+      try {
+        await parse("--json", "status");
+        // Command should run without throwing
+      } finally {
+        fetchSpy.mockRestore();
+      }
     });
   });
 
@@ -223,9 +234,26 @@ describe("CLI entry point", () => {
       expect(output).toContain("submit");
     });
 
-    it("runs status stub", async () => {
-      await parse("status");
-      expect(consoleLogs.join("\n")).toContain("Not implemented: status");
+    it("runs status command without throwing", async () => {
+      const { resetBaseUrl } = await import("./lib/api-client.js");
+      const { setJsonMode } = await import("./lib/output.js");
+      resetBaseUrl();
+      setJsonMode(false);
+      const fetchSpy = spyOn(globalThis, "fetch");
+      fetchSpy.mockResolvedValue(
+        new Response(JSON.stringify({ data: [], total: 0, page: 1, limit: 20 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+      try {
+        // The command should execute without throwing
+        await parse("status");
+      } finally {
+        fetchSpy.mockRestore();
+        resetBaseUrl();
+        setJsonMode(false);
+      }
     });
 
     it("runs logs stub", async () => {

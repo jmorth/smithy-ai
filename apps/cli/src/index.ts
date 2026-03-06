@@ -125,6 +125,10 @@ export function createProgram(): Command {
   program
     .command("status")
     .description("Show current platform status")
+    .option("--line <slug>", "Show detail for a specific assembly line")
+    .option("--pool <slug>", "Show detail for a specific worker pool")
+    .option("--watch", "Re-fetch and re-render on an interval")
+    .option("--interval <seconds>", "Watch interval in seconds (default 5)", "5")
     .action(async (opts, cmd) => {
       const { run } = await import("./commands/status.js");
       await run(cmd.parent!.opts(), cmd);
