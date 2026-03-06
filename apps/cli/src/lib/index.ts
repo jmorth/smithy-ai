@@ -17,3 +17,13 @@ export type {
   JobLogEntry,
   JobLogsParams,
 } from './api-client.js';
+
+export * as config from './config.js';
+
+export {
+  getConfigDir,
+  getConfigPath,
+  isValidKey,
+} from './config.js';
+
+export type { CliConfig, CliConfigKey } from './config.js';
