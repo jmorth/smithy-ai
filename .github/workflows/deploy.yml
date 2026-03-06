@@ -1,0 +1,94 @@
+# Deploy workflow — triggers after CI passes on main
+#
+# Required secrets:
+#   RAILWAY_TOKEN — Railway project-scoped deploy token.
+#     Generate at: Railway Dashboard → Project → Settings → Tokens → Create Token
+#     Add at: GitHub repo → Settings → Secrets and variables → Actions → New repository secret
+#
+# Environment variables for production (DATABASE_URL, REDIS_URL, etc.) are managed
+# entirely in Railway's environment config. Do NOT hardcode them here.
+#
+# Rollback instructions:
+#   1. Via Railway CLI:
+#        railway rollback --service api
+#        railway rollback --service web
+#   2. Via Railway Dashboard:
+#        Select the service → Deployments → click "Rollback" on the previous deployment
+#   3. Via Git:
+#        Revert the commit and push to main — CI + deploy will run with the reverted code
+
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      # Deploy API service (uses apps/api/Dockerfile)
+      - name: Deploy API
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service api --detach
+        # Rollback: railway rollback --service api
+
+      # Build web static assets and deploy
+      - name: Build Web
+        run: pnpm --filter web build
+
+      - name: Deploy Web
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service web --detach
+        # Rollback: railway rollback --service web
+
+      - name: Deployment Summary
+        if: success()
+        run: |
+          echo "### Deployment Complete :rocket:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **API**: Deployed via Railway (detached)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Web**: Built and deployed via Railway (detached)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Triggered by**: CI workflow on \`main\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Deployment Failed
+        if: failure()
+        run: |
+          echo "### Deployment Failed :x:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Check the step logs above for details." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Rollback**:" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`railway rollback --service api\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`railway rollback --service web\`" >> "$GITHUB_STEP_SUMMARY"
+
+  notify-failure:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    steps:
+      - name: CI Failed — Skip Deploy
+        run: |
+          echo "### CI Failed — Deployment Skipped :warning:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "The CI workflow failed on \`main\`. Deployment was not attempted." >> "$GITHUB_STEP_SUMMARY"
+          echo "Fix the CI issues and push again to trigger a new deployment." >> "$GITHUB_STEP_SUMMARY"
