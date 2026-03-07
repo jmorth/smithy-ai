@@ -23,7 +23,7 @@ interface MessageEvent {
   retry?: number;
 }
 
-@Controller('api/jobs/:jobId/logs')
+@Controller('jobs/:jobId/logs')
 @UseGuards(JwtAuthGuard)
 export class LogsController {
   private readonly logger = new Logger(LogsController.name);
