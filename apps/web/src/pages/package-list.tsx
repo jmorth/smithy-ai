@@ -37,7 +37,6 @@ import type { Package } from '@smithy/shared';
 // Constants
 // ---------------------------------------------------------------------------
 
-const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
 const LIMIT_OPTIONS = [10, 25, 50];
 const DEBOUNCE_MS = 300;
@@ -296,26 +295,30 @@ function ErrorState({
 // ---------------------------------------------------------------------------
 
 function PaginationControls({
-  page,
-  totalPages,
   total,
+  count,
   limit,
-  onPageChange,
+  hasCursor,
+  hasNextPage,
+  onFirstPage,
+  onNextPage,
   onLimitChange,
 }: {
-  page: number;
-  totalPages: number;
   total: number;
+  count: number;
   limit: number;
-  onPageChange: (page: number) => void;
+  hasCursor: boolean;
+  hasNextPage: boolean;
+  onFirstPage: () => void;
+  onNextPage: () => void;
   onLimitChange: (limit: number) => void;
 }) {
   return (
     <div className="flex items-center justify-between px-2 py-4">
       <p className="text-sm text-muted-foreground">
         {total > 0
-          ? `Showing ${(page - 1) * limit + 1}–${Math.min(page * limit, total)} of ${total} Packages`
-          : `Page ${page}`}
+          ? `Showing ${count} of ${total} Packages`
+          : 'No packages'}
       </p>
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
@@ -335,23 +338,20 @@ function PaginationControls({
             ))}
           </select>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Page {page} of {totalPages || 1}
-        </p>
         <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
-            disabled={page <= 1}
-            onClick={() => onPageChange(page - 1)}
+            disabled={!hasCursor}
+            onClick={onFirstPage}
           >
-            Previous
+            First
           </Button>
           <Button
             variant="outline"
             size="sm"
-            disabled={page >= totalPages}
-            onClick={() => onPageChange(page + 1)}
+            disabled={!hasNextPage}
+            onClick={onNextPage}
           >
             Next
           </Button>
@@ -540,7 +540,7 @@ export default function PackageListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Read filter state from URL
-  const page = Number(searchParams.get('page')) || DEFAULT_PAGE;
+  const cursor = searchParams.get('cursor') ?? undefined;
   const limit = Number(searchParams.get('limit')) || DEFAULT_LIMIT;
   const urlSearch = searchParams.get('search') ?? '';
   const urlType = searchParams.get('type') ?? '';
@@ -566,7 +566,7 @@ export default function PackageListPage() {
       } else {
         next.delete('search');
       }
-      next.set('page', '1');
+      next.delete('cursor');
       return next;
     });
   }, [debouncedSearch, setSearchParams]);
@@ -577,7 +577,7 @@ export default function PackageListPage() {
 
   // Build query params
   const queryParams = {
-    page,
+    cursor,
     limit,
     ...(urlSearch ? { search: urlSearch } : {}),
     ...(urlType ? { type: urlType } : {}),
@@ -590,8 +590,8 @@ export default function PackageListPage() {
   const { data, isLoading, error, refetch } = usePackages(queryParams);
 
   const items = data?.data ?? [];
-  const total = data?.meta?.total ?? 0;
-  const totalPages = Math.ceil(total / limit) || 1;
+  const total = data?.total ?? 0;
+  const nextCursor = data?.cursor;
 
   const hasActiveFilters =
     !!urlSearch || !!urlType || !!urlStatus || !!urlCreatedAfter || !!urlCreatedBefore;
@@ -610,30 +610,36 @@ export default function PackageListPage() {
         } else {
           next.delete(key);
         }
-        next.set('page', '1');
+        next.delete('cursor');
         return next;
       });
     },
     [setSearchParams],
   );
 
-  const handlePageChange = useCallback(
-    (newPage: number) => {
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.set('page', String(newPage));
-        return next;
-      });
-    },
-    [setSearchParams],
-  );
+  const handleNextPage = useCallback(() => {
+    if (!nextCursor) return;
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('cursor', nextCursor);
+      return next;
+    });
+  }, [nextCursor, setSearchParams]);
+
+  const handleFirstPage = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('cursor');
+      return next;
+    });
+  }, [setSearchParams]);
 
   const handleLimitChange = useCallback(
     (newLimit: number) => {
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         next.set('limit', String(newLimit));
-        next.set('page', '1');
+        next.delete('cursor');
         return next;
       });
     },
@@ -657,6 +663,7 @@ export default function PackageListPage() {
       const next = new URLSearchParams();
       const currentLimit = prev.get('limit');
       if (currentLimit) next.set('limit', currentLimit);
+      // Reset cursor when clearing filters
       return next;
     });
   }, [setSearchParams]);
@@ -752,11 +759,13 @@ export default function PackageListPage() {
 
           {!isLoading && (
             <PaginationControls
-              page={page}
-              totalPages={totalPages}
               total={total}
+              count={items.length}
               limit={limit}
-              onPageChange={handlePageChange}
+              hasCursor={!!cursor}
+              hasNextPage={!!nextCursor}
+              onFirstPage={handleFirstPage}
+              onNextPage={handleNextPage}
               onLimitChange={handleLimitChange}
             />
           )}

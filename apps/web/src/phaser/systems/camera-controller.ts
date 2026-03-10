@@ -171,10 +171,15 @@ export class CameraController {
     this.targetZoom = Phaser.Math.Clamp(level, MIN_ZOOM, MAX_ZOOM);
   }
 
-  setBounds(width: number, height: number): void {
+  setBounds(
+    originX: number,
+    originY: number,
+    width: number,
+    height: number,
+  ): void {
     this.camera.setBounds(
-      -BOUNDS_PADDING,
-      -BOUNDS_PADDING,
+      originX - BOUNDS_PADDING,
+      originY - BOUNDS_PADDING,
       width + BOUNDS_PADDING * 2,
       height + BOUNDS_PADDING * 2,
     );

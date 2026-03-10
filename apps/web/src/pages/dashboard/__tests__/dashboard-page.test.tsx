@@ -63,7 +63,7 @@ describe('DashboardPage', () => {
     ] as never);
     vi.mocked(client.packages.list).mockResolvedValue({
       data: [],
-      meta: { total: 7, limit: 0 },
+      total: 7,
     } as never);
   });
 

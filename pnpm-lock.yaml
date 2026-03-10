@@ -333,6 +333,9 @@ importers:
 
   packages/shared:
     devDependencies:
+      '@types/node':
+        specifier: ^22.19.13
+        version: 22.19.13
       '@vitest/coverage-v8':
         specifier: ^3.2.4
         version: 3.2.4(vitest@3.2.4(@types/node@22.19.13)(jiti@1.21.7)(jsdom@28.1.0(@noble/hashes@1.8.0))(terser@5.46.0)(yaml@2.8.2))

@@ -19,6 +19,7 @@
       "inputs": ["src/**", "tsconfig*.json", "package.json"]
     },
     "dev": {
+      "dependsOn": ["^build"],
       "persistent": true,
       "cache": false
     }

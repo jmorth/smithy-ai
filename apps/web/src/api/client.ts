@@ -47,18 +47,14 @@ export interface PaginationParams {
 
 export interface PaginatedResponse<T> {
   data: T[];
-  meta: {
-    page?: number;
-    limit: number;
-    total: number;
-    cursor?: string;
-  };
+  total: number;
+  cursor?: string;
 }
 
 // --- Packages ---
 
 export interface PackagePaginationParams {
-  page?: number;
+  cursor?: string;
   limit?: number;
   search?: string;
   type?: string;

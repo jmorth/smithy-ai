@@ -329,6 +329,8 @@ describe('FactoryScene', () => {
       expect(mockCameraController.setBounds).toHaveBeenCalledWith(
         expect.any(Number),
         expect.any(Number),
+        expect.any(Number),
+        expect.any(Number),
       );
     });
 

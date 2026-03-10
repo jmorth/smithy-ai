@@ -137,7 +137,11 @@ export default class FactoryScene extends Phaser.Scene {
     const width = maxX - minX + TILE_WIDTH;
     const height = maxY - minY + TILE_HEIGHT;
 
-    this.cameraController.setBounds(width, height);
+    this.cameraController.setBounds(minX, minY, width, height);
+    this.cameraController.centerOn(
+      Math.floor(this.gridCols / 2),
+      Math.floor(this.gridRows / 2),
+    );
   }
 
   // -----------------------------------------------------------------------
@@ -236,6 +240,10 @@ export default class FactoryScene extends Phaser.Scene {
 
   private onResetView(): void {
     this.cameraController?.resetView();
+    this.cameraController?.centerOn(
+      Math.floor(this.gridCols / 2),
+      Math.floor(this.gridRows / 2),
+    );
   }
 
   // -----------------------------------------------------------------------

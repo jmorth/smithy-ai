@@ -551,10 +551,10 @@ describe('CameraController', () => {
 
   describe('setBounds', () => {
     it('delegates to camera.setBounds with padding', () => {
-      controller.setBounds(1000, 800);
+      controller.setBounds(-300, -100, 1000, 800);
       expect(scene.cameras.main.setBounds).toHaveBeenCalledWith(
-        -BOUNDS_PADDING,
-        -BOUNDS_PADDING,
+        -300 - BOUNDS_PADDING,
+        -100 - BOUNDS_PADDING,
         1000 + BOUNDS_PADDING * 2,
         800 + BOUNDS_PADDING * 2,
       );

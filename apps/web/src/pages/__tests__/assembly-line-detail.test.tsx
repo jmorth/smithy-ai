@@ -119,7 +119,7 @@ const DEFAULT_PACKAGES = {
       currentStep: 2,
     }),
   ],
-  meta: { limit: 20, total: 2 },
+  total: 2,
 };
 
 // ---------------------------------------------------------------------------
@@ -974,7 +974,7 @@ describe('AssemblyLineDetailPage', () => {
             currentStep: 1,
           }),
         ],
-        meta: { limit: 1, total: 5 },
+        total: 5,
       } as never);
       renderPage();
       expect(

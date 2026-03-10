@@ -46,7 +46,7 @@ describe('useDashboardStats', () => {
     ] as never);
     vi.mocked(client.packages.list).mockResolvedValue({
       data: [],
-      meta: { total: 42, limit: 0 },
+      total: 42,
     } as never);
 
     const { result } = renderHook(() => useDashboardStats(), {
@@ -87,7 +87,7 @@ describe('useDashboardStats', () => {
     vi.mocked(client.workerPools.list).mockResolvedValue([] as never);
     vi.mocked(client.packages.list).mockResolvedValue({
       data: [],
-      meta: { total: 0, limit: 0 },
+      total: 0,
     } as never);
 
     const { result } = renderHook(() => useDashboardStats(), {
@@ -107,7 +107,7 @@ describe('useDashboardStats', () => {
     ] as never);
     vi.mocked(client.packages.list).mockResolvedValue({
       data: [],
-      meta: { total: 0, limit: 0 },
+      total: 0,
     } as never);
 
     const { result } = renderHook(() => useDashboardStats(), {
