@@ -61,7 +61,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Start Docker Compose services
-        run: docker compose -f docker/docker-compose.yml up -d --wait
+        run: docker compose -f docker/docker-compose.yml up -d --wait postgres redis rabbitmq minio && docker compose -f docker/docker-compose.yml run --rm minio-init
 
       - run: pnpm turbo test
 
@@ -98,7 +98,7 @@ jobs:
         run: pnpm --filter web exec playwright install --with-deps chromium
 
       - name: Start Docker Compose services
-        run: docker compose -f docker/docker-compose.yml up -d --wait
+        run: docker compose -f docker/docker-compose.yml up -d --wait postgres redis rabbitmq minio && docker compose -f docker/docker-compose.yml run --rm minio-init
 
       - name: Start API server
         run: pnpm --filter api dev &
