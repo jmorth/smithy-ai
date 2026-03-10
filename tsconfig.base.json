@@ -16,8 +16,8 @@
     "declarationMap": true,
     "sourceMap": true,
     "paths": {
-      "@smithy/shared": ["packages/shared/src"],
-      "@smithy/shared/*": ["packages/shared/src/*"],
+      "@smithy/shared": ["packages/shared/dist"],
+      "@smithy/shared/*": ["packages/shared/dist/*"],
       "@smithy/worker-sdk": ["packages/worker-sdk/src"],
       "@smithy/worker-sdk/*": ["packages/worker-sdk/src/*"]
     }
