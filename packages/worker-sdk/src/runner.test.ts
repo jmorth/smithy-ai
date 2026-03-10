@@ -468,7 +468,7 @@ describe('run', () => {
   });
 
   it('calls worker.onError when lifecycle throws', async () => {
-    let onErrorCalled = false;
+    const onErrorCalled = false;
     const failWorkerPath = createWorkerModule(tmpDir, {
       onProcess: 'throw new Error("kaboom");',
       onError: 'globalThis.__testOnErrorCalled = true;',

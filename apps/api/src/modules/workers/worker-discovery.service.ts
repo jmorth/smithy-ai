@@ -97,7 +97,7 @@ export class WorkerDiscoveryService implements OnModuleInit {
     const newConfigHash = this.computeConfigHash(config);
 
     try {
-      let existingWorker = await this.findWorkerBySlug(slug);
+      const existingWorker = await this.findWorkerBySlug(slug);
 
       if (!existingWorker) {
         try {

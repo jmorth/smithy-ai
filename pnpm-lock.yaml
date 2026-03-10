@@ -114,6 +114,9 @@ importers:
       '@nestjs/testing':
         specifier: ^10.0.0
         version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)(@nestjs/platform-express@10.4.22)
+      '@smithy/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
       '@swc/core':
         specifier: ^1.15.18
         version: 1.15.18
@@ -138,6 +141,9 @@ importers:
       drizzle-kit:
         specifier: ^0.31.9
         version: 0.31.9
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.3(jiti@1.21.7)
       pino-pretty:
         specifier: ^13.1.3
         version: 13.1.3
@@ -178,9 +184,15 @@ importers:
         specifier: ^2.8.2
         version: 2.8.2
     devDependencies:
+      '@smithy/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
       '@types/bun':
         specifier: latest
         version: 1.3.9
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.3(jiti@1.21.7)
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
@@ -333,12 +345,18 @@ importers:
 
   packages/shared:
     devDependencies:
+      '@smithy/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
       '@types/node':
         specifier: ^22.19.13
         version: 22.19.13
       '@vitest/coverage-v8':
         specifier: ^3.2.4
         version: 3.2.4(vitest@3.2.4(@types/node@22.19.13)(jiti@1.21.7)(jsdom@28.1.0(@noble/hashes@1.8.0))(terser@5.46.0)(yaml@2.8.2))
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.3(jiti@1.21.7)
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
@@ -373,9 +391,15 @@ importers:
         specifier: ^2.8.2
         version: 2.8.2
     devDependencies:
+      '@smithy/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
       '@vitest/coverage-v8':
         specifier: ^3.2.4
         version: 3.2.4(vitest@3.2.4(@types/node@22.19.13)(jiti@1.21.7)(jsdom@28.1.0(@noble/hashes@1.8.0))(terser@5.46.0)(yaml@2.8.2))
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.3(jiti@1.21.7)
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
@@ -401,9 +425,15 @@ importers:
         specifier: ^3.25.76
         version: 3.25.76
     devDependencies:
+      '@smithy/eslint-config':
+        specifier: workspace:*
+        version: link:../../../packages/eslint-config
       '@vitest/coverage-v8':
         specifier: ^3.2.4
         version: 3.2.4(vitest@3.2.4(@types/node@22.19.13)(jiti@1.21.7)(jsdom@28.1.0(@noble/hashes@1.8.0))(terser@5.46.0)(yaml@2.8.2))
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.3(jiti@1.21.7)
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
@@ -426,9 +456,15 @@ importers:
         specifier: ^6.0.105
         version: 6.0.105(zod@4.3.6)
     devDependencies:
+      '@smithy/eslint-config':
+        specifier: workspace:*
+        version: link:../../../packages/eslint-config
       '@vitest/coverage-v8':
         specifier: ^3.2.4
         version: 3.2.4(vitest@3.2.4(@types/node@22.19.13)(jiti@1.21.7)(jsdom@28.1.0(@noble/hashes@1.8.0))(terser@5.46.0)(yaml@2.8.2))
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.3(jiti@1.21.7)
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
@@ -451,9 +487,15 @@ importers:
         specifier: ^6.0.105
         version: 6.0.105(zod@4.3.6)
     devDependencies:
+      '@smithy/eslint-config':
+        specifier: workspace:*
+        version: link:../../../packages/eslint-config
       '@vitest/coverage-v8':
         specifier: ^3.2.4
         version: 3.2.4(vitest@3.2.4(@types/node@22.19.13)(jiti@1.21.7)(jsdom@28.1.0(@noble/hashes@1.8.0))(terser@5.46.0)(yaml@2.8.2))
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.3(jiti@1.21.7)
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
