@@ -10,6 +10,7 @@ import {
   useAppStore,
 } from '@/stores/app.store';
 import type { SocketState } from '@/stores/app.store';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { MobileSidebarTrigger } from './sidebar';
 
 const SOCKET_INDICATOR: Record<SocketState, { color: string; label: string }> = {
@@ -41,9 +42,10 @@ export function Header() {
     <header className="flex h-14 items-center gap-4 border-b bg-background px-4">
       <MobileSidebarTrigger />
 
-      <h1 className="text-lg font-semibold md:hidden">Smithy</h1>
+      <h1 className="text-lg font-semibold font-serif md:hidden">Smithy</h1>
 
       <div className="ml-auto flex items-center gap-3">
+        <ThemeToggle />
         <div className="flex items-center gap-2" aria-label={`Socket status: ${indicator.label}`}>
           <span
             data-testid="socket-indicator"

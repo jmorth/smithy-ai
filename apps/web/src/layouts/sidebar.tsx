@@ -122,7 +122,7 @@ export function Sidebar() {
         )}
       >
         {!collapsed && (
-          <span className="text-lg font-semibold">Smithy</span>
+          <span className="text-lg font-semibold font-serif">Smithy</span>
         )}
         <Button
           variant="ghost"
@@ -168,7 +168,7 @@ export function MobileSidebarTrigger() {
         <SheetContent side="left" className="w-64 p-0" aria-describedby={undefined}>
           <SheetTitle className="sr-only">Navigation</SheetTitle>
           <div className="flex h-14 items-center border-b px-4">
-            <span className="text-lg font-semibold">Smithy</span>
+            <span className="text-lg font-semibold font-serif">Smithy</span>
           </div>
           <div className="py-2">
             <SidebarNav collapsed={false} onNavigate={() => setOpen(false)} />

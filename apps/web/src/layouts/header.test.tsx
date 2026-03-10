@@ -16,6 +16,7 @@ function resetStore() {
     unreadNotificationCount: 0,
     selectedWorkerId: null,
     selectedPackageId: null,
+    theme: 'system',
   });
 }
 
@@ -56,6 +57,11 @@ describe('Header', () => {
     it('renders the mobile sidebar trigger', () => {
       renderHeader();
       expect(screen.getByRole('button', { name: 'Open navigation menu' })).toBeInTheDocument();
+    });
+
+    it('renders the theme toggle button', () => {
+      renderHeader();
+      expect(screen.getByRole('button', { name: 'Toggle theme' })).toBeInTheDocument();
     });
   });
 
