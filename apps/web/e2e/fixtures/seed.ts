@@ -53,16 +53,43 @@ async function apiPost<T>(path: string, body: unknown): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export async function seedTestData(): Promise<SeedData> {
-  const summarizer = await apiPost<Worker>("/workers", {
-    name: "summarizer",
-    description: "Summarizes input text into concise output",
-  });
+async function apiGet<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`);
 
-  const specWriter = await apiPost<Worker>("/workers", {
-    name: "spec-writer",
-    description: "Generates specification documents from requirements",
-  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(
+      `GET ${path} failed with ${response.status}: ${text}`,
+    );
+  }
+
+  return response.json() as Promise<T>;
+}
+
+/**
+ * Create a worker, or return the existing one if it already exists (409).
+ */
+async function ensureWorker(name: string, description: string): Promise<Worker> {
+  try {
+    return await apiPost<Worker>("/workers", { name, description });
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("409")) {
+      return apiGet<Worker>(`/workers/${name}`);
+    }
+    throw err;
+  }
+}
+
+export async function seedTestData(): Promise<SeedData> {
+  const summarizer = await ensureWorker(
+    "summarizer",
+    "Summarizes input text into concise output",
+  );
+
+  const specWriter = await ensureWorker(
+    "spec-writer",
+    "Generates specification documents from requirements",
+  );
 
   const summarizerVersion = await apiPost<WorkerVersion>(
     `/workers/${summarizer.slug}/versions`,

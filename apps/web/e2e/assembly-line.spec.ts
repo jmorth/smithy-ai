@@ -36,7 +36,7 @@ test.describe.serial("Assembly Line Workflow", () => {
     // Verify the seeded assembly line appears in the table
     await expect(page.getByRole("table")).toBeVisible();
     await expect(
-      page.getByRole("cell", { name: /summarize-then-spec/i }),
+      page.getByRole("cell", { name: "summarize-then-spec", exact: true }),
     ).toBeVisible();
 
     // Verify status badge shows "Active"
