@@ -14,6 +14,8 @@ import { login, navigateTo } from "./fixtures/helpers";
  * pass once the container orchestration layer is deployed.
  */
 
+const RUN_ID = Date.now().toString(36);
+
 test.describe.serial("Assembly Line Workflow", () => {
   test.beforeAll(async () => {
     await seedTestData();
@@ -75,8 +77,9 @@ test.describe.serial("Assembly Line Workflow", () => {
       page.getByRole("heading", { name: "Create Assembly Line" }),
     ).toBeVisible();
 
-    // Fill in name
-    await page.locator("#al-name").fill("e2e-test-pipeline");
+    // Fill in name (unique per run to avoid 409 conflicts on retry)
+    const pipelineName = `e2e-pipeline-${RUN_ID}`;
+    await page.locator("#al-name").fill(pipelineName);
 
     // Fill in description
     await page
@@ -128,13 +131,13 @@ test.describe.serial("Assembly Line Workflow", () => {
       .click();
 
     // Should navigate to the new assembly line detail page
-    await page.waitForURL(/\/assembly-lines\/e2e-test-pipeline/);
-    createdSlug = "e2e-test-pipeline";
+    createdSlug = `e2e-pipeline-${RUN_ID}`;
+    await page.waitForURL(new RegExp(`/assembly-lines/${createdSlug}`));
 
     // Verify detail page loaded with correct name
     await expect(
-      page.getByRole("heading", { name: "e2e-test-pipeline" }),
-    ).toBeVisible();
+      page.getByRole("heading", { name: pipelineName }),
+    ).toBeVisible({ timeout: 10_000 });
 
     // Verify pipeline shows both steps
     await expect(page.getByTestId("step-1")).toBeVisible();

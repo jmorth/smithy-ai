@@ -14,6 +14,8 @@ import { login, navigateTo } from "./fixtures/helpers";
  * and rely on Socket.IO real-time updates (not polling).
  */
 
+const RUN_ID = Date.now().toString(36);
+
 test.describe.serial("Interactive Worker - STUCK Flow", () => {
   let seed: SeedData;
   let interactiveSlug: string;
@@ -34,7 +36,8 @@ test.describe.serial("Interactive Worker - STUCK Flow", () => {
     await navigateTo(page, "/assembly-lines/create");
 
     // Fill in name and description
-    await page.locator("#al-name").fill("interactive-e2e-test");
+    const alName = `interactive-e2e-${RUN_ID}`;
+    await page.locator("#al-name").fill(alName);
     await page
       .locator("#al-description")
       .fill("E2E test for interactive STUCK flow with spec-writer");
@@ -59,13 +62,13 @@ test.describe.serial("Interactive Worker - STUCK Flow", () => {
       .click();
 
     // Should navigate to the detail page
-    await page.waitForURL(/\/assembly-lines\/interactive-e2e-test/);
-    interactiveSlug = "interactive-e2e-test";
+    interactiveSlug = alName;
+    await page.waitForURL(new RegExp(`/assembly-lines/${interactiveSlug}`));
 
     // Verify detail page loaded
     await expect(
-      page.getByRole("heading", { name: "interactive-e2e-test" }),
-    ).toBeVisible();
+      page.getByRole("heading", { name: alName }),
+    ).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTestId("step-1")).toBeVisible();
   });
 
