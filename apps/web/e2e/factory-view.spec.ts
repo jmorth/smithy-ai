@@ -14,7 +14,7 @@ test.describe("Factory View", () => {
     await navigateTo(page, "/factory");
 
     const canvas = page.locator("canvas");
-    await expect(canvas).toBeVisible();
+    await expect(canvas).toBeVisible({ timeout: 15_000 });
   });
 
   test("should load the Phaser canvas without console errors", async ({

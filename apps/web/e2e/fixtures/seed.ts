@@ -69,10 +69,13 @@ export async function seedTestData(): Promise<SeedData> {
     {
       yamlConfig: {
         name: "summarizer",
-        version: "1.0.0",
-        entrypoint: "index.ts",
-        inputs: [{ name: "text", type: "string" }],
-        outputs: [{ name: "summary", type: "string" }],
+        inputTypes: ["text/plain"],
+        outputType: "text/plain",
+        provider: {
+          name: "anthropic",
+          model: "claude-sonnet-4-20250514",
+          apiKeyEnv: "ANTHROPIC_API_KEY",
+        },
       },
     },
   );
@@ -82,10 +85,13 @@ export async function seedTestData(): Promise<SeedData> {
     {
       yamlConfig: {
         name: "spec-writer",
-        version: "1.0.0",
-        entrypoint: "index.ts",
-        inputs: [{ name: "requirements", type: "string" }],
-        outputs: [{ name: "spec", type: "string" }],
+        inputTypes: ["text/plain"],
+        outputType: "text/plain",
+        provider: {
+          name: "anthropic",
+          model: "claude-sonnet-4-20250514",
+          apiKeyEnv: "ANTHROPIC_API_KEY",
+        },
       },
     },
   );
