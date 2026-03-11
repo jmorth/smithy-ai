@@ -44,7 +44,7 @@ test.describe.serial("Assembly Line Workflow", () => {
 
     // Verify Create button is present
     await expect(
-      page.getByRole("link", { name: /Create Assembly Line/i }),
+      page.getByRole("button", { name: /Create Assembly Line/i }),
     ).toBeVisible();
 
     // Verify table has expected column headers

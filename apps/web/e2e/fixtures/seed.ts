@@ -67,28 +67,34 @@ async function apiGet<T>(path: string): Promise<T> {
 }
 
 /**
- * Create a worker, or return the existing one if it already exists (409).
+ * POST to create, or GET existing on 409 conflict.
  */
-async function ensureWorker(name: string, description: string): Promise<Worker> {
+async function apiPostIdempotent<T>(
+  postPath: string,
+  body: unknown,
+  getPath: string,
+): Promise<T> {
   try {
-    return await apiPost<Worker>("/workers", { name, description });
+    return await apiPost<T>(postPath, body);
   } catch (err) {
     if (err instanceof Error && err.message.includes("409")) {
-      return apiGet<Worker>(`/workers/${name}`);
+      return apiGet<T>(getPath);
     }
     throw err;
   }
 }
 
 export async function seedTestData(): Promise<SeedData> {
-  const summarizer = await ensureWorker(
-    "summarizer",
-    "Summarizes input text into concise output",
+  const summarizer = await apiPostIdempotent<Worker>(
+    "/workers",
+    { name: "summarizer", description: "Summarizes input text into concise output" },
+    "/workers/summarizer",
   );
 
-  const specWriter = await ensureWorker(
-    "spec-writer",
-    "Generates specification documents from requirements",
+  const specWriter = await apiPostIdempotent<Worker>(
+    "/workers",
+    { name: "spec-writer", description: "Generates specification documents from requirements" },
+    "/workers/spec-writer",
   );
 
   const summarizerVersion = await apiPost<WorkerVersion>(
@@ -123,23 +129,31 @@ export async function seedTestData(): Promise<SeedData> {
     },
   );
 
-  const assemblyLine = await apiPost<AssemblyLine>("/assembly-lines", {
-    name: "summarize-then-spec",
-    description: "Summarizes input then writes a spec",
-    steps: [
-      { workerVersionId: summarizerVersion.id },
-      { workerVersionId: specWriterVersion.id },
-    ],
-  });
+  const assemblyLine = await apiPostIdempotent<AssemblyLine>(
+    "/assembly-lines",
+    {
+      name: "summarize-then-spec",
+      description: "Summarizes input then writes a spec",
+      steps: [
+        { workerVersionId: summarizerVersion.id },
+        { workerVersionId: specWriterVersion.id },
+      ],
+    },
+    "/assembly-lines/summarize-then-spec",
+  );
 
-  const workerPool = await apiPost<WorkerPool>("/worker-pools", {
-    name: "text-processors",
-    maxConcurrency: 5,
-    members: [
-      { workerVersionId: summarizerVersion.id, priority: 1 },
-      { workerVersionId: specWriterVersion.id, priority: 2 },
-    ],
-  });
+  const workerPool = await apiPostIdempotent<WorkerPool>(
+    "/worker-pools",
+    {
+      name: "text-processors",
+      maxConcurrency: 5,
+      members: [
+        { workerVersionId: summarizerVersion.id, priority: 1 },
+        { workerVersionId: specWriterVersion.id, priority: 2 },
+      ],
+    },
+    "/worker-pools/text-processors",
+  );
 
   const pkg = await apiPost<Package>("/packages", {
     type: "test-input",
