@@ -72,25 +72,25 @@ describe("seedTestData", () => {
     const calls = vi.mocked(globalThis.fetch).mock.calls;
 
     // Workers
-    expect(calls[0][0]).toBe("http://localhost:3000/workers");
-    expect(calls[1][0]).toBe("http://localhost:3000/workers");
+    expect(calls[0][0]).toBe("http://localhost:3000/api/workers");
+    expect(calls[1][0]).toBe("http://localhost:3000/api/workers");
 
     // Versions
     expect(calls[2][0]).toBe(
-      "http://localhost:3000/workers/summarizer/versions",
+      "http://localhost:3000/api/workers/summarizer/versions",
     );
     expect(calls[3][0]).toBe(
-      "http://localhost:3000/workers/spec-writer/versions",
+      "http://localhost:3000/api/workers/spec-writer/versions",
     );
 
     // Assembly line
-    expect(calls[4][0]).toBe("http://localhost:3000/assembly-lines");
+    expect(calls[4][0]).toBe("http://localhost:3000/api/assembly-lines");
 
     // Worker pool
-    expect(calls[5][0]).toBe("http://localhost:3000/worker-pools");
+    expect(calls[5][0]).toBe("http://localhost:3000/api/worker-pools");
 
     // Package
-    expect(calls[6][0]).toBe("http://localhost:3000/packages");
+    expect(calls[6][0]).toBe("http://localhost:3000/api/packages");
   });
 
   it("should send correct request bodies", async () => {
@@ -163,7 +163,7 @@ describe("seedTestData", () => {
     await seedTestData();
 
     const calls = vi.mocked(globalThis.fetch).mock.calls;
-    expect((calls[0][0] as string).startsWith("http://localhost:3000")).toBe(
+    expect((calls[0][0] as string).startsWith("http://localhost:3000/api")).toBe(
       true,
     );
 
