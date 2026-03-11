@@ -109,6 +109,9 @@ jobs:
       - name: Build shared packages
         run: pnpm turbo build --filter=api...
 
+      - name: Run database migrations
+        run: pnpm --filter api db:migrate
+
       - name: Start API server
         run: pnpm --filter api dev &
 
