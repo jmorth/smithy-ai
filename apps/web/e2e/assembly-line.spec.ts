@@ -126,13 +126,14 @@ test.describe.serial("Assembly Line Workflow", () => {
       "spec-writer",
     );
 
-    // Submit the form — capture the detail API response for diagnostics
+    // Submit the form — intercept the POST to diagnose failures
     createdSlug = `e2e-pipeline-${RUN_ID}`;
-    const detailApiPromise = page.waitForResponse(
+    const createResponsePromise = page.waitForResponse(
       (resp) =>
-        resp.url().includes(`/api/assembly-lines/${createdSlug}`) &&
+        resp.url().includes("/api/assembly-lines") &&
         !resp.url().includes("/packages") &&
-        resp.request().method() === "GET",
+        !resp.url().includes("/submit") &&
+        resp.request().method() === "POST",
       { timeout: 30_000 },
     );
 
@@ -140,17 +141,18 @@ test.describe.serial("Assembly Line Workflow", () => {
       .getByRole("button", { name: /^Create Assembly Line$/i })
       .click();
 
-    // Should navigate to the new assembly line detail page
-    await page.waitForURL(new RegExp(`/assembly-lines/${createdSlug}`));
-
-    // Wait for the detail API call and verify it succeeded
-    const detailResponse = await detailApiPromise;
-    if (detailResponse.status() !== 200) {
-      const body = await detailResponse.text();
+    // Verify the create API call succeeded
+    const createResponse = await createResponsePromise;
+    if (createResponse.status() !== 201) {
+      const body = await createResponse.text();
       throw new Error(
-        `Detail API GET /assembly-lines/${createdSlug} returned ${detailResponse.status()}: ${body}`,
+        `Create API POST /assembly-lines returned ${createResponse.status()}: ${body}`,
       );
     }
+
+    // Should navigate to the new assembly line detail page
+    await page.waitForURL(new RegExp(`/assembly-lines/${createdSlug}`));
+    await page.waitForLoadState("networkidle");
 
     // Verify detail page loaded with correct name
     await expect(
