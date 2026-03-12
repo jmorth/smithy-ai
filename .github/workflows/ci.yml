@@ -119,7 +119,7 @@ jobs:
         run: pnpm --filter web dev &
 
       - name: Wait for servers
-        run: npx wait-on tcp:3000 http://localhost:5173 --timeout 60000
+        run: npx wait-on http://localhost:3000/health http://localhost:5173 --timeout 60000
 
       - name: Run E2E tests
         run: pnpm --filter web e2e

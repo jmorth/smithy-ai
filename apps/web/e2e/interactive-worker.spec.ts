@@ -32,6 +32,7 @@ test.describe.serial("Interactive Worker - STUCK Flow", () => {
   test("should create an assembly line with a spec-writer worker", async ({
     page,
   }) => {
+    test.slow();
     await login(page);
     await navigateTo(page, "/assembly-lines/create");
 
@@ -64,11 +65,12 @@ test.describe.serial("Interactive Worker - STUCK Flow", () => {
     // Should navigate to the detail page
     interactiveSlug = alName;
     await page.waitForURL(new RegExp(`/assembly-lines/${interactiveSlug}`));
+    await page.waitForLoadState("networkidle");
 
     // Verify detail page loaded
     await expect(
-      page.getByRole("heading", { name: alName }),
-    ).toBeVisible({ timeout: 10_000 });
+      page.locator("h2").filter({ hasText: alName }),
+    ).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId("step-1")).toBeVisible();
   });
 

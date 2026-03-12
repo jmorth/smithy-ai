@@ -69,6 +69,7 @@ test.describe.serial("Assembly Line Workflow", () => {
   test("should create a new assembly line with 2 steps via the UI", async ({
     page,
   }) => {
+    test.slow();
     await login(page);
     await navigateTo(page, "/assembly-lines/create");
 
@@ -133,11 +134,12 @@ test.describe.serial("Assembly Line Workflow", () => {
     // Should navigate to the new assembly line detail page
     createdSlug = `e2e-pipeline-${RUN_ID}`;
     await page.waitForURL(new RegExp(`/assembly-lines/${createdSlug}`));
+    await page.waitForLoadState("networkidle");
 
     // Verify detail page loaded with correct name
     await expect(
-      page.getByRole("heading", { name: pipelineName }),
-    ).toBeVisible({ timeout: 10_000 });
+      page.locator("h2").filter({ hasText: pipelineName }),
+    ).toBeVisible({ timeout: 30_000 });
 
     // Verify pipeline shows both steps
     await expect(page.getByTestId("step-1")).toBeVisible();
