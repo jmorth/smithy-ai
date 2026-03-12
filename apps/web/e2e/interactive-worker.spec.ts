@@ -57,15 +57,31 @@ test.describe.serial("Interactive Worker - STUCK Flow", () => {
     await expect(page.getByTestId("step-card-0")).toBeVisible();
     await expect(page.getByTestId("step-card-0")).toContainText("spec-writer");
 
-    // Submit the form
+    // Submit the form — capture the detail API response for diagnostics
+    interactiveSlug = alName;
+    const detailApiPromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes(`/api/assembly-lines/${interactiveSlug}`) &&
+        !resp.url().includes("/packages") &&
+        resp.request().method() === "GET",
+      { timeout: 30_000 },
+    );
+
     await page
       .getByRole("button", { name: /^Create Assembly Line$/i })
       .click();
 
     // Should navigate to the detail page
-    interactiveSlug = alName;
     await page.waitForURL(new RegExp(`/assembly-lines/${interactiveSlug}`));
-    await page.waitForLoadState("networkidle");
+
+    // Wait for the detail API call and verify it succeeded
+    const detailResponse = await detailApiPromise;
+    if (detailResponse.status() !== 200) {
+      const body = await detailResponse.text();
+      throw new Error(
+        `Detail API GET /assembly-lines/${interactiveSlug} returned ${detailResponse.status()}: ${body}`,
+      );
+    }
 
     // Verify detail page loaded
     await expect(
