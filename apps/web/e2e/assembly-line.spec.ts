@@ -14,6 +14,8 @@ import { login, navigateTo } from "./fixtures/helpers";
  * pass once the container orchestration layer is deployed.
  */
 
+const RUN_ID = Date.now().toString(36);
+
 test.describe.serial("Assembly Line Workflow", () => {
   test.beforeAll(async () => {
     await seedTestData();
@@ -36,7 +38,7 @@ test.describe.serial("Assembly Line Workflow", () => {
     // Verify the seeded assembly line appears in the table
     await expect(page.getByRole("table")).toBeVisible();
     await expect(
-      page.getByRole("cell", { name: /summarize-then-spec/i }),
+      page.getByRole("cell", { name: "summarize-then-spec", exact: true }),
     ).toBeVisible();
 
     // Verify status badge shows "Active"
@@ -44,7 +46,7 @@ test.describe.serial("Assembly Line Workflow", () => {
 
     // Verify Create button is present
     await expect(
-      page.getByRole("link", { name: /Create Assembly Line/i }),
+      page.getByRole("button", { name: /Create Assembly Line/i }),
     ).toBeVisible();
 
     // Verify table has expected column headers
@@ -67,6 +69,7 @@ test.describe.serial("Assembly Line Workflow", () => {
   test("should create a new assembly line with 2 steps via the UI", async ({
     page,
   }) => {
+    test.slow();
     await login(page);
     await navigateTo(page, "/assembly-lines/create");
 
@@ -75,8 +78,9 @@ test.describe.serial("Assembly Line Workflow", () => {
       page.getByRole("heading", { name: "Create Assembly Line" }),
     ).toBeVisible();
 
-    // Fill in name
-    await page.locator("#al-name").fill("e2e-test-pipeline");
+    // Fill in name (unique per run to avoid 409 conflicts on retry)
+    const pipelineName = `e2e-pipeline-${RUN_ID}`;
+    await page.locator("#al-name").fill(pipelineName);
 
     // Fill in description
     await page
@@ -122,19 +126,38 @@ test.describe.serial("Assembly Line Workflow", () => {
       "spec-writer",
     );
 
-    // Submit the form
+    // Submit the form — intercept the POST to diagnose failures
+    createdSlug = `e2e-pipeline-${RUN_ID}`;
+    const createResponsePromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes("/api/assembly-lines") &&
+        !resp.url().includes("/packages") &&
+        !resp.url().includes("/submit") &&
+        resp.request().method() === "POST",
+      { timeout: 30_000 },
+    );
+
     await page
       .getByRole("button", { name: /^Create Assembly Line$/i })
       .click();
 
+    // Verify the create API call succeeded
+    const createResponse = await createResponsePromise;
+    if (createResponse.status() !== 201) {
+      const body = await createResponse.text();
+      throw new Error(
+        `Create API POST /assembly-lines returned ${createResponse.status()}: ${body}`,
+      );
+    }
+
     // Should navigate to the new assembly line detail page
-    await page.waitForURL(/\/assembly-lines\/e2e-test-pipeline/);
-    createdSlug = "e2e-test-pipeline";
+    await page.waitForURL(new RegExp(`/assembly-lines/${createdSlug}`));
+    await page.waitForLoadState("networkidle");
 
     // Verify detail page loaded with correct name
     await expect(
-      page.getByRole("heading", { name: "e2e-test-pipeline" }),
-    ).toBeVisible();
+      page.locator("h2").filter({ hasText: pipelineName }),
+    ).toBeVisible({ timeout: 30_000 });
 
     // Verify pipeline shows both steps
     await expect(page.getByTestId("step-1")).toBeVisible();

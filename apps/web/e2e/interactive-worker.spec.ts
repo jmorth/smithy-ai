@@ -14,6 +14,8 @@ import { login, navigateTo } from "./fixtures/helpers";
  * and rely on Socket.IO real-time updates (not polling).
  */
 
+const RUN_ID = Date.now().toString(36);
+
 test.describe.serial("Interactive Worker - STUCK Flow", () => {
   let seed: SeedData;
   let interactiveSlug: string;
@@ -30,11 +32,13 @@ test.describe.serial("Interactive Worker - STUCK Flow", () => {
   test("should create an assembly line with a spec-writer worker", async ({
     page,
   }) => {
+    test.slow();
     await login(page);
     await navigateTo(page, "/assembly-lines/create");
 
     // Fill in name and description
-    await page.locator("#al-name").fill("interactive-e2e-test");
+    const alName = `interactive-e2e-${RUN_ID}`;
+    await page.locator("#al-name").fill(alName);
     await page
       .locator("#al-description")
       .fill("E2E test for interactive STUCK flow with spec-writer");
@@ -53,19 +57,38 @@ test.describe.serial("Interactive Worker - STUCK Flow", () => {
     await expect(page.getByTestId("step-card-0")).toBeVisible();
     await expect(page.getByTestId("step-card-0")).toContainText("spec-writer");
 
-    // Submit the form
+    // Submit the form — intercept the POST to diagnose failures
+    interactiveSlug = alName;
+    const createResponsePromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes("/api/assembly-lines") &&
+        !resp.url().includes("/packages") &&
+        !resp.url().includes("/submit") &&
+        resp.request().method() === "POST",
+      { timeout: 30_000 },
+    );
+
     await page
       .getByRole("button", { name: /^Create Assembly Line$/i })
       .click();
 
+    // Verify the create API call succeeded
+    const createResponse = await createResponsePromise;
+    if (createResponse.status() !== 201) {
+      const body = await createResponse.text();
+      throw new Error(
+        `Create API POST /assembly-lines returned ${createResponse.status()}: ${body}`,
+      );
+    }
+
     // Should navigate to the detail page
-    await page.waitForURL(/\/assembly-lines\/interactive-e2e-test/);
-    interactiveSlug = "interactive-e2e-test";
+    await page.waitForURL(new RegExp(`/assembly-lines/${interactiveSlug}`));
+    await page.waitForLoadState("networkidle");
 
     // Verify detail page loaded
     await expect(
-      page.getByRole("heading", { name: "interactive-e2e-test" }),
-    ).toBeVisible();
+      page.locator("h2").filter({ hasText: alName }),
+    ).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId("step-1")).toBeVisible();
   });
 

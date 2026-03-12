@@ -12,7 +12,7 @@ import type {
   AssemblyLineStepCompletedEvent,
   EventTypeMap,
 } from './event-types.js';
-import { RoutingKeys } from './routing-keys.js';
+import type { RoutingKeys } from './routing-keys.js';
 import { WorkerState } from '../constants/enums.js';
 
 // Helper that asserts a value satisfies a type at compile time only

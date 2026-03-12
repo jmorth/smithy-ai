@@ -1,10 +1,8 @@
 import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Plus,
   Minus,
   Home,
-  LayoutDashboard,
   Package,
   ChevronDown,
   Menu,
@@ -19,7 +17,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useAppStore } from '@/stores/app.store';
 import { useFactoryStore, useTargetZoom } from '@/stores/factory.store';
 import { useAssemblyLines } from '@/api/hooks/use-assembly-lines';
 import { useWorkerPools } from '@/api/hooks/use-worker-pools';
@@ -41,8 +38,6 @@ const ZOOM_STEP = 0.25;
 // ---------------------------------------------------------------------------
 
 export function FactoryToolbar() {
-  const navigate = useNavigate();
-  const setViewMode = useAppStore((s) => s.setViewMode);
   const zoomTo = useFactoryStore((s) => s.zoomTo);
   const centerOn = useFactoryStore((s) => s.centerOn);
   const resetView = useFactoryStore((s) => s.resetView);
@@ -75,11 +70,6 @@ export function FactoryToolbar() {
   const handleResetView = useCallback(() => {
     resetView();
   }, [resetView]);
-
-  const handleSwitchToDashboard = useCallback(() => {
-    setViewMode('managerial');
-    navigate('/');
-  }, [setViewMode, navigate]);
 
   const handleSelectEntity = useCallback(
     (type: 'assembly-line' | 'worker-pool', slug: string) => {
@@ -294,17 +284,6 @@ export function FactoryToolbar() {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1"
-            onClick={handleSwitchToDashboard}
-            data-testid="switch-dashboard-btn"
-          >
-            <LayoutDashboard className="h-4 w-4" />
-            <span>Dashboard</span>
-          </Button>
         </div>
 
         {/* Mobile: collapsed menu (visible on small screens) */}
@@ -356,10 +335,6 @@ export function FactoryToolbar() {
               <DropdownMenuItem onClick={handleOpenGenericSubmit}>
                 <Package className="mr-2 h-4 w-4" />
                 Submit Package
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleSwitchToDashboard}>
-                <LayoutDashboard className="mr-2 h-4 w-4" />
-                Dashboard
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

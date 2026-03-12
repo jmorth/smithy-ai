@@ -123,6 +123,7 @@ function resetStore() {
     unreadNotificationCount: 0,
     selectedWorkerId: null,
     selectedPackageId: null,
+    theme: 'system',
   });
 }
 

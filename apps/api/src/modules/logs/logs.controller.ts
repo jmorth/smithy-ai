@@ -10,7 +10,7 @@ import {
   Sse,
   UseGuards,
 } from '@nestjs/common';
-import { Observable, concat, of } from 'rxjs';
+import { type Subscriber, Observable, concat, of } from 'rxjs';
 import { map, endWith } from 'rxjs/operators';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { LogsService } from './logs.service';
@@ -23,7 +23,7 @@ interface MessageEvent {
   retry?: number;
 }
 
-@Controller('api/jobs/:jobId/logs')
+@Controller('jobs/:jobId/logs')
 @UseGuards(JwtAuthGuard)
 export class LogsController {
   private readonly logger = new Logger(LogsController.name);
@@ -80,7 +80,7 @@ export class LogsController {
 
   private async validateAndStream(
     jobId: string,
-    subscriber: import('rxjs').Subscriber<MessageEvent>,
+    subscriber: Subscriber<MessageEvent>,
   ): Promise<void> {
     try {
       const status = await this.logsService.getJobStatus(jobId);

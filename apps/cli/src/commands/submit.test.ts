@@ -752,7 +752,7 @@ describe('CLI integration', () => {
     // Check argument
     const args = submitCmd!.registeredArguments;
     expect(args.length).toBeGreaterThanOrEqual(1);
-    expect(args[0].name()).toBe('type');
+    expect(args[0]?.name()).toBe('type');
 
     // Check options
     const optionNames = submitCmd!.options.map((o) => o.long);

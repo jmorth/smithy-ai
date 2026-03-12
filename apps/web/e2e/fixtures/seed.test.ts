@@ -72,25 +72,25 @@ describe("seedTestData", () => {
     const calls = vi.mocked(globalThis.fetch).mock.calls;
 
     // Workers
-    expect(calls[0][0]).toBe("http://localhost:3000/workers");
-    expect(calls[1][0]).toBe("http://localhost:3000/workers");
+    expect(calls[0][0]).toBe("http://localhost:3000/api/workers");
+    expect(calls[1][0]).toBe("http://localhost:3000/api/workers");
 
     // Versions
     expect(calls[2][0]).toBe(
-      "http://localhost:3000/workers/summarizer/versions",
+      "http://localhost:3000/api/workers/summarizer/versions",
     );
     expect(calls[3][0]).toBe(
-      "http://localhost:3000/workers/spec-writer/versions",
+      "http://localhost:3000/api/workers/spec-writer/versions",
     );
 
     // Assembly line
-    expect(calls[4][0]).toBe("http://localhost:3000/assembly-lines");
+    expect(calls[4][0]).toBe("http://localhost:3000/api/assembly-lines");
 
     // Worker pool
-    expect(calls[5][0]).toBe("http://localhost:3000/worker-pools");
+    expect(calls[5][0]).toBe("http://localhost:3000/api/worker-pools");
 
     // Package
-    expect(calls[6][0]).toBe("http://localhost:3000/packages");
+    expect(calls[6][0]).toBe("http://localhost:3000/api/packages");
   });
 
   it("should send correct request bodies", async () => {
@@ -128,7 +128,7 @@ describe("seedTestData", () => {
     expect(pkgBody.metadata).toEqual({ source: "e2e-seed" });
   });
 
-  it("should use POST method with JSON content type for all calls", async () => {
+  it("should use POST method with JSON content type for all calls in happy path", async () => {
     globalThis.fetch = mockFetchResponses();
 
     await seedTestData();
@@ -140,6 +140,47 @@ describe("seedTestData", () => {
       expect(init.method).toBe("POST");
       expect(init.headers).toEqual({ "Content-Type": "application/json" });
     }
+  });
+
+  it("should fall back to GET on 409 conflict for worker creation", async () => {
+    let callIndex = 0;
+    globalThis.fetch = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const urlStr = url.toString();
+      // First POST to /workers returns 409
+      if (callIndex === 0 && init?.method === "POST" && urlStr.endsWith("/workers")) {
+        callIndex++;
+        return {
+          ok: false,
+          status: 409,
+          text: async () => '{"statusCode":409,"message":"Worker already exists"}',
+        };
+      }
+      // GET fallback for summarizer
+      if (callIndex === 1 && !init?.method && urlStr.endsWith("/workers/summarizer")) {
+        callIndex++;
+        return { ok: true, json: async () => mockWorkerSummarizer };
+      }
+      // Remaining calls succeed
+      const responses = [
+        mockWorkerSpecWriter,
+        mockVersionSummarizer,
+        mockVersionSpecWriter,
+        mockAssemblyLine,
+        mockWorkerPool,
+        mockPackage,
+      ];
+      const resp = responses[callIndex - 2] ?? {};
+      callIndex++;
+      return { ok: true, json: async () => resp };
+    }) as unknown as typeof globalThis.fetch;
+
+    const data = await seedTestData();
+
+    expect(data.workers.summarizer).toEqual(mockWorkerSummarizer);
+    // Should have made a GET call for the 409 fallback
+    const calls = vi.mocked(globalThis.fetch).mock.calls;
+    expect(calls[1][0]).toBe("http://localhost:3000/api/workers/summarizer");
+    expect((calls[1][1] as RequestInit | undefined)?.method).toBeUndefined();
   });
 
   it("should throw on API error with status and body", async () => {
@@ -163,7 +204,7 @@ describe("seedTestData", () => {
     await seedTestData();
 
     const calls = vi.mocked(globalThis.fetch).mock.calls;
-    expect((calls[0][0] as string).startsWith("http://localhost:3000")).toBe(
+    expect((calls[0][0] as string).startsWith("http://localhost:3000/api")).toBe(
       true,
     );
 

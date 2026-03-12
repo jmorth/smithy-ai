@@ -90,9 +90,8 @@ describe('FactoryPage', () => {
     const { container } = renderWithProviders(<FactoryPage />);
     const root = container.firstElementChild as HTMLElement;
     expect(root).not.toBeNull();
-    expect(root.className).toContain('w-screen');
-    expect(root.className).toContain('h-screen');
     expect(root.className).toContain('relative');
+    expect(root.className).toContain('-m-4');
   });
 
   it('renders the phaser container', () => {

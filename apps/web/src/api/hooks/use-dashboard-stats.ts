@@ -15,15 +15,13 @@ async function fetchDashboardStats(
   const [alResult, wpResult, pkgResult] = await Promise.all([
     assemblyLines.list(undefined, signal),
     workerPools.list(undefined, signal),
-    packages.list({ status: 'IN_TRANSIT' as never, limit: 0 }, signal),
+    packages.list({ status: 'IN_TRANSIT' as never, limit: 1 }, signal),
   ]);
 
   const activeALs = Array.isArray(alResult) ? alResult : [];
   const activeWPs = Array.isArray(wpResult) ? wpResult : [];
 
-  const inTransitCount = pkgResult.meta
-    ? pkgResult.meta.total
-    : pkgResult.data.length;
+  const inTransitCount = pkgResult.total ?? pkgResult.data.length;
 
   const totalMaxConcurrency = activeWPs.reduce(
     (sum, wp) => sum + (wp.maxConcurrency ?? 0),

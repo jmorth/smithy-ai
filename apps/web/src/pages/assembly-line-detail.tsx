@@ -541,7 +541,7 @@ export default function AssemblyLineDetailPage() {
         isLoading={packagesLoading}
         hasMore={
           packagesData
-            ? packagesData.data.length < packagesData.meta.total
+            ? packagesData.data.length < packagesData.total
             : false
         }
         onLoadMore={() => refetchPackages()}

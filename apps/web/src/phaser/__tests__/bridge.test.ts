@@ -18,6 +18,7 @@ function createMockStore() {
     unreadNotificationCount: 0,
     selectedWorkerId: null,
     selectedPackageId: null,
+    theme: 'system',
     setViewMode: (mode) => set({ viewMode: mode }),
     setSocketState: (state) => set({ socketState: state }),
     incrementNotifications: () =>
@@ -25,6 +26,7 @@ function createMockStore() {
     resetNotifications: () => set({ unreadNotificationCount: 0 }),
     selectWorker: (id) => set({ selectedWorkerId: id }),
     selectPackage: (id) => set({ selectedPackageId: id }),
+    setTheme: (theme) => set({ theme }),
   }));
 }
 

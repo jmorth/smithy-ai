@@ -34,6 +34,8 @@ jobs:
 
       - uses: pnpm/action-setup@v4
 
+      - uses: oven-sh/setup-bun@v2
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -53,6 +55,8 @@ jobs:
 
       - uses: pnpm/action-setup@v4
 
+      - uses: oven-sh/setup-bun@v2
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -61,7 +65,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Start Docker Compose services
-        run: docker compose -f docker/docker-compose.yml up -d --wait
+        run: docker compose -f docker/docker-compose.yml up -d --wait postgres redis rabbitmq minio && docker compose -f docker/docker-compose.yml run --rm minio-init
 
       - run: pnpm turbo test
 
@@ -81,6 +85,8 @@ jobs:
 
       - uses: pnpm/action-setup@v4
 
+      - uses: oven-sh/setup-bun@v2
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -98,7 +104,13 @@ jobs:
         run: pnpm --filter web exec playwright install --with-deps chromium
 
       - name: Start Docker Compose services
-        run: docker compose -f docker/docker-compose.yml up -d --wait
+        run: docker compose -f docker/docker-compose.yml up -d --wait postgres redis rabbitmq minio && docker compose -f docker/docker-compose.yml run --rm minio-init
+
+      - name: Build shared packages
+        run: pnpm turbo build --filter=api...
+
+      - name: Run database migrations
+        run: pnpm --filter api db:migrate
 
       - name: Start API server
         run: pnpm --filter api dev &

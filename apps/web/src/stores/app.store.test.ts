@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import {
   useAppStore,
@@ -7,6 +7,8 @@ import {
   useUnreadNotificationCount,
   useSelectedWorkerId,
   useSelectedPackageId,
+  useTheme,
+  applyThemeClass,
 } from './app.store';
 import type { AppStore } from './app.store';
 
@@ -22,6 +24,7 @@ function resetStore(): void {
     unreadNotificationCount: 0,
     selectedWorkerId: null,
     selectedPackageId: null,
+    theme: 'system',
   });
 }
 
@@ -39,6 +42,8 @@ describe('useAppStore', () => {
     resetStore();
     // Clear localStorage to avoid persist middleware interference
     localStorage.clear();
+    // Reset dark class
+    document.documentElement.classList.remove('dark');
   });
 
   // -------------------------------------------------------------------------
@@ -64,6 +69,10 @@ describe('useAppStore', () => {
 
     it('has selectedPackageId defaulting to null', () => {
       expect(state().selectedPackageId).toBeNull();
+    });
+
+    it('has theme defaulting to system', () => {
+      expect(state().theme).toBe('system');
     });
   });
 
@@ -171,24 +180,81 @@ describe('useAppStore', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Persistence (viewMode only)
+  // setTheme
+  // -------------------------------------------------------------------------
+
+  describe('setTheme', () => {
+    it('updates theme to dark', () => {
+      state().setTheme('dark');
+      expect(state().theme).toBe('dark');
+    });
+
+    it('updates theme to light', () => {
+      state().setTheme('light');
+      expect(state().theme).toBe('light');
+    });
+
+    it('updates theme back to system', () => {
+      state().setTheme('dark');
+      state().setTheme('system');
+      expect(state().theme).toBe('system');
+    });
+
+    it('adds dark class when set to dark', () => {
+      state().setTheme('dark');
+      expect(document.documentElement.classList.contains('dark')).toBe(true);
+    });
+
+    it('removes dark class when set to light', () => {
+      document.documentElement.classList.add('dark');
+      state().setTheme('light');
+      expect(document.documentElement.classList.contains('dark')).toBe(false);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // applyThemeClass
+  // -------------------------------------------------------------------------
+
+  describe('applyThemeClass', () => {
+    it('adds dark class for dark theme', () => {
+      applyThemeClass('dark');
+      expect(document.documentElement.classList.contains('dark')).toBe(true);
+    });
+
+    it('removes dark class for light theme', () => {
+      document.documentElement.classList.add('dark');
+      applyThemeClass('light');
+      expect(document.documentElement.classList.contains('dark')).toBe(false);
+    });
+
+    it('respects prefers-color-scheme for system theme', () => {
+      // jsdom defaults to no dark preference, so system should remove dark
+      applyThemeClass('system');
+      expect(document.documentElement.classList.contains('dark')).toBe(false);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Persistence
   // -------------------------------------------------------------------------
 
   describe('persistence', () => {
-    it('persists viewMode to localStorage under smithy-view-mode key', () => {
+    it('persists viewMode and theme to localStorage under smithy-app-storage key', () => {
       state().setViewMode('factory');
+      state().setTheme('dark');
 
-      // Zustand persist writes synchronously in v5
-      const stored = localStorage.getItem('smithy-view-mode');
+      const stored = localStorage.getItem('smithy-app-storage');
       expect(stored).not.toBeNull();
 
       const parsed = JSON.parse(stored!);
       expect(parsed.state.viewMode).toBe('factory');
+      expect(parsed.state.theme).toBe('dark');
     });
 
     it('does NOT persist socketState to localStorage', () => {
       state().setSocketState('connected');
-      const stored = localStorage.getItem('smithy-view-mode');
+      const stored = localStorage.getItem('smithy-app-storage');
       if (stored) {
         const parsed = JSON.parse(stored);
         expect(parsed.state.socketState).toBeUndefined();
@@ -197,7 +263,7 @@ describe('useAppStore', () => {
 
     it('does NOT persist unreadNotificationCount to localStorage', () => {
       state().incrementNotifications();
-      const stored = localStorage.getItem('smithy-view-mode');
+      const stored = localStorage.getItem('smithy-app-storage');
       if (stored) {
         const parsed = JSON.parse(stored);
         expect(parsed.state.unreadNotificationCount).toBeUndefined();
@@ -206,7 +272,7 @@ describe('useAppStore', () => {
 
     it('does NOT persist selectedWorkerId to localStorage', () => {
       state().selectWorker('worker-1');
-      const stored = localStorage.getItem('smithy-view-mode');
+      const stored = localStorage.getItem('smithy-app-storage');
       if (stored) {
         const parsed = JSON.parse(stored);
         expect(parsed.state.selectedWorkerId).toBeUndefined();
@@ -215,7 +281,7 @@ describe('useAppStore', () => {
 
     it('does NOT persist selectedPackageId to localStorage', () => {
       state().selectPackage('pkg-1');
-      const stored = localStorage.getItem('smithy-view-mode');
+      const stored = localStorage.getItem('smithy-app-storage');
       if (stored) {
         const parsed = JSON.parse(stored);
         expect(parsed.state.selectedPackageId).toBeUndefined();
@@ -223,16 +289,25 @@ describe('useAppStore', () => {
     });
 
     it('restores viewMode from localStorage on rehydration', () => {
-      // Seed localStorage with factory mode
       localStorage.setItem(
-        'smithy-view-mode',
-        JSON.stringify({ state: { viewMode: 'factory' }, version: 0 }),
+        'smithy-app-storage',
+        JSON.stringify({ state: { viewMode: 'factory', theme: 'system' }, version: 0 }),
       );
 
-      // Trigger rehydration
       useAppStore.persist.rehydrate();
 
       expect(state().viewMode).toBe('factory');
+    });
+
+    it('restores theme from localStorage on rehydration', () => {
+      localStorage.setItem(
+        'smithy-app-storage',
+        JSON.stringify({ state: { viewMode: 'managerial', theme: 'dark' }, version: 0 }),
+      );
+
+      useAppStore.persist.rehydrate();
+
+      expect(state().theme).toBe('dark');
     });
 
     it('ephemeral state is not affected by rehydration', () => {
@@ -243,13 +318,14 @@ describe('useAppStore', () => {
 
       // Seed localStorage and rehydrate
       localStorage.setItem(
-        'smithy-view-mode',
-        JSON.stringify({ state: { viewMode: 'factory' }, version: 0 }),
+        'smithy-app-storage',
+        JSON.stringify({ state: { viewMode: 'factory', theme: 'dark' }, version: 0 }),
       );
       useAppStore.persist.rehydrate();
 
-      // viewMode should change, but ephemeral state stays
+      // viewMode and theme should change, but ephemeral state stays
       expect(state().viewMode).toBe('factory');
+      expect(state().theme).toBe('dark');
       expect(state().socketState).toBe('connected');
       expect(state().unreadNotificationCount).toBe(1);
       expect(state().selectedWorkerId).toBe('worker-99');
@@ -283,6 +359,16 @@ describe('useAppStore', () => {
 
       expect(state().viewMode).toBe('factory');
       expect(state().unreadNotificationCount).toBe(1);
+    });
+
+    it('setting theme does not affect other slices', () => {
+      state().setViewMode('factory');
+      state().setSocketState('connected');
+
+      state().setTheme('dark');
+
+      expect(state().viewMode).toBe('factory');
+      expect(state().socketState).toBe('connected');
     });
   });
 
@@ -329,6 +415,14 @@ describe('useAppStore', () => {
 
       act(() => state().selectPackage('p-1'));
       expect(result.current).toBe('p-1');
+    });
+
+    it('useTheme returns current theme', () => {
+      const { result } = renderHook(() => useTheme());
+      expect(result.current).toBe('system');
+
+      act(() => state().setTheme('dark'));
+      expect(result.current).toBe('dark');
     });
   });
 });

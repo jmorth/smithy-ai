@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
+import type { Response } from 'express';
 import { HealthController } from './health.controller';
 import { HealthService } from './health.service';
 import type { HealthCheckResult } from './health.service';
@@ -51,7 +52,7 @@ describe('HealthController', () => {
 
   it('responds with 200 and ok body when all services are up', async () => {
     const res = makeResponse();
-    await controller.check(res as unknown as import('express').Response);
+    await controller.check(res as unknown as Response);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(allUpResult);
   });
@@ -59,28 +60,28 @@ describe('HealthController', () => {
   it('responds with 503 and degraded body when a service is down', async () => {
     healthService.check.mockResolvedValue(degradedResult);
     const res = makeResponse();
-    await controller.check(res as unknown as import('express').Response);
+    await controller.check(res as unknown as Response);
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith(degradedResult);
   });
 
   it('calls HealthService.check exactly once per request', async () => {
     const res = makeResponse();
-    await controller.check(res as unknown as import('express').Response);
+    await controller.check(res as unknown as Response);
     expect(healthService.check).toHaveBeenCalledTimes(1);
   });
 
   it('includes error fields in degraded response', async () => {
     healthService.check.mockResolvedValue(degradedResult);
     const res = makeResponse();
-    await controller.check(res as unknown as import('express').Response);
+    await controller.check(res as unknown as Response);
     const payload = vi.mocked(res.json).mock.calls[0][0] as HealthCheckResult;
     expect(payload.services.database.error).toBe('connection refused');
   });
 
   it('includes ISO 8601 timestamp in response', async () => {
     const res = makeResponse();
-    await controller.check(res as unknown as import('express').Response);
+    await controller.check(res as unknown as Response);
     const payload = vi.mocked(res.json).mock.calls[0][0] as HealthCheckResult;
     expect(payload.timestamp).toBe('2025-01-01T00:00:00.000Z');
   });

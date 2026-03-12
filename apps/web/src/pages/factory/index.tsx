@@ -44,7 +44,7 @@ export default function FactoryPage() {
   }, []);
 
   return (
-    <div className="relative w-screen h-screen">
+    <div className="relative -m-4 h-[calc(100%+2rem)] w-[calc(100%+2rem)]">
       <PhaserGame ref={gameRef} config={config} onGameReady={handleGameReady} />
       <div className="absolute inset-0 pointer-events-none z-10">
         <WorkerDetailPanel />

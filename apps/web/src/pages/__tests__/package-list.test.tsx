@@ -78,9 +78,9 @@ const PACKAGES = [
 
 function makePaginatedResponse(
   items = PACKAGES,
-  meta = { page: 1, limit: 10, total: items.length },
+  { total, cursor }: { total?: number; cursor?: string } = {},
 ) {
-  return { data: items, meta };
+  return { data: items, total: total ?? items.length, cursor };
 }
 
 // ---------------------------------------------------------------------------
@@ -297,7 +297,7 @@ describe('PackageListPage', () => {
         new Promise(() => {}) as never,
       );
       renderPage();
-      expect(screen.queryByText('Previous')).not.toBeInTheDocument();
+      expect(screen.queryByText('First')).not.toBeInTheDocument();
     });
   });
 
@@ -482,35 +482,29 @@ describe('PackageListPage', () => {
   // -----------------------------------------------------------------------
 
   describe('Pagination', () => {
-    it('shows total count and page info', async () => {
+    it('shows total count info', async () => {
       renderPage();
       await screen.findByText('pkg-aaaa');
-      expect(screen.getByText(/Showing 1–3 of 3 Packages/)).toBeInTheDocument();
+      expect(screen.getByText(/Showing 3 of 3 Packages/)).toBeInTheDocument();
     });
 
-    it('shows page x of y', async () => {
-      renderPage();
-      await screen.findByText('pkg-aaaa');
-      expect(screen.getByText('Page 1 of 1')).toBeInTheDocument();
-    });
-
-    it('disables Previous button on first page', async () => {
+    it('disables First button when no cursor', async () => {
       renderPage();
       await screen.findByText('pkg-aaaa');
       expect(
-        screen.getByRole('button', { name: 'Previous' }),
+        screen.getByRole('button', { name: 'First' }),
       ).toBeDisabled();
     });
 
-    it('disables Next when on last page', async () => {
+    it('disables Next when no next cursor', async () => {
       renderPage();
       await screen.findByText('pkg-aaaa');
       expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
     });
 
-    it('enables Next when more pages exist', async () => {
+    it('enables Next when cursor is present in response', async () => {
       vi.mocked(client.packages.list).mockResolvedValue(
-        makePaginatedResponse(PACKAGES, { page: 1, limit: 10, total: 30 }) as never,
+        makePaginatedResponse(PACKAGES, { total: 30, cursor: 'next-cursor-id' }) as never,
       );
       renderPage();
       await screen.findByText('pkg-aaaa');
@@ -519,12 +513,12 @@ describe('PackageListPage', () => {
       ).not.toBeDisabled();
     });
 
-    it('passes page and limit to API hook', async () => {
-      renderPage(['/packages?page=3&limit=25']);
+    it('passes cursor and limit to API hook', async () => {
+      renderPage(['/packages?cursor=some-cursor&limit=25']);
       await screen.findByText('pkg-aaaa');
 
       expect(client.packages.list).toHaveBeenCalledWith(
-        expect.objectContaining({ page: 3, limit: 25 }),
+        expect.objectContaining({ cursor: 'some-cursor', limit: 25 }),
         expect.anything(),
       );
     });
@@ -544,7 +538,7 @@ describe('PackageListPage', () => {
       await user.selectOptions(select, '25');
 
       expect(client.packages.list).toHaveBeenCalledWith(
-        expect.objectContaining({ limit: 25, page: 1 }),
+        expect.objectContaining({ limit: 25 }),
         expect.anything(),
       );
     });

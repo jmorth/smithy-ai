@@ -300,24 +300,6 @@ describe('FactoryToolbar', () => {
     );
   });
 
-  // ---- Switch to Dashboard ----
-
-  it('switch to dashboard button navigates to root', async () => {
-    const user = userEvent.setup();
-    renderToolbar();
-
-    await user.click(screen.getByTestId('switch-dashboard-btn'));
-    expect(mockNavigate).toHaveBeenCalledWith('/');
-  });
-
-  it('switch to dashboard sets viewMode to managerial', async () => {
-    const user = userEvent.setup();
-    renderToolbar();
-
-    await user.click(screen.getByTestId('switch-dashboard-btn'));
-    expect(useAppStore.getState().viewMode).toBe('managerial');
-  });
-
   // ---- Entity Selector ----
 
   it('shows entity selector button', () => {
@@ -470,18 +452,6 @@ describe('FactoryToolbar', () => {
     expect(screen.getByText('My Pool')).toBeInTheDocument();
   });
 
-  it('mobile menu dashboard navigates to root', async () => {
-    const user = userEvent.setup();
-    renderToolbar();
-
-    await user.click(screen.getByTestId('mobile-menu-btn'));
-    const menuItems = await screen.findAllByText('Dashboard');
-    // Click the one in the mobile menu (last one)
-    await user.click(menuItems[menuItems.length - 1]!);
-
-    expect(mockNavigate).toHaveBeenCalledWith('/');
-  });
-
   // ---- Uses shadcn/ui components ----
 
   it('uses Badge component for zoom level display', () => {
@@ -496,7 +466,6 @@ describe('FactoryToolbar', () => {
     expect(screen.getByTestId('zoom-in-btn').tagName).toBe('BUTTON');
     expect(screen.getByTestId('zoom-out-btn').tagName).toBe('BUTTON');
     expect(screen.getByTestId('reset-view-btn').tagName).toBe('BUTTON');
-    expect(screen.getByTestId('switch-dashboard-btn').tagName).toBe('BUTTON');
   });
 
   // ---- Multiple assembly lines and pools ----
